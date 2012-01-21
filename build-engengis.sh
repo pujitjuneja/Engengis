@@ -15,7 +15,7 @@ else
 fi;
 cd include
 echo "Making zip archieve..."
-zip -r engengis * &
+zip -r engengis * 
 cd ..
 sleep 3
 echo "Signing zip archieve..."
@@ -26,4 +26,4 @@ cd ..
 mv signzip/signed-engengis.zip build/Engengis.Delta_build-.zip
 echo "Done find build at:"
 echo "/build/Engengis.Delta_build-.zip"
-
+rm -f signzip/engengis.zip
