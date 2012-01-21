@@ -1,7 +1,7 @@
 #!/system/bin/sh
 # Copyright (c) 2012, Jake "redmaner" van der Putten
 # Engengis project
-# Codename: Delta Build 3 
+# Codename: Delta (build=21012012)
 # Universal Build 46
 
 LOG=/data/engengis.log
