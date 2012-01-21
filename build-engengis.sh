@@ -8,8 +8,6 @@
 # - Java (to sign zip file)
 # - zip/unzip (apt-get install zip/apt-get install unzip)
 
-NAME=jake
-
 if [ -d build ]; then
      echo "Start building engengis..."
 else
