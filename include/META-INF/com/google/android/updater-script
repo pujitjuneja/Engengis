@@ -1,0 +1,55 @@
+ui_print("--------------------------------");
+ui_print("By: Redmaner                    ");
+show_progress(0.200000, 10);
+run_program("/sbin/busybox", "mount", "/system");
+run_program("/sbin/busybox", "mount", "/data");
+
+show_progress(0.200000, 50);
+delete_recursive("/system/etc/engengis");
+delete("/system/bin/zipalign");
+delete("/system/bin/sqlite3");
+delete("/system/bin/engengis");
+delete("/system/bin/engengisa");
+delete("/system/bin/engengisg");
+delete("/system/bin/engengishss");
+delete("/system/bin/engengisr");
+delete("/system/bin/engengiss");
+delete("/system/bin/engengisettings");
+delete("/system/etc/init.d/S00lmkadj");
+delete("/system/etc/init.d/S00ramscript");
+delete("/system/etc/init.d/S07hsstweak");
+delete("/system/etc/init.d/S14zipalign");
+delete("/system/etc/init.d/S21hsstweak");
+delete("/system/etc/init.d/S21sqlite");
+delete("/system/etc/init.d/S28scheduler");
+delete("/system/etc/init.d/S35sdreadspeed");
+delete("/system/etc/init.d/S42cpugovernor");
+delete("/system/etc/init.d/S49dropcaches");
+delete("/system/etc/init.d/S56internet");
+delete("/system/etc/init.d/S63internetsecurity");
+delete("/data/engengis.log");
+
+show_progress(0.200000, 60);
+package_extract_dir("system", "/system");
+package_extract_file("updated", "/data/updated");
+
+show_progress(0.200000, 70);
+set_perm_recursive(0, 2000, 0755, 0750, "/system/etc/engengis");
+set_perm(0, 0, 0777, "/system/bin/engengis");
+set_perm(0, 0, 0777, "/system/xbin/sqlite3");
+set_perm(0, 0, 0777, "/system/xbin/zipalign");
+
+show_progress(0.200000, 80);
+run_program("/sbin/busybox", "umount", "/system");
+
+show_progress(1.000000, 0);
+ui_print("--------------------------------");
+ui_print(" ");
+ui_print(" ");
+ui_print("--------------------------------");
+ui_print("         Engengis.Delta         ");
+ui_print("--------------------------------");
+ui_print("     http://gingerreal.info     ");
+ui_print("--------------------------------");
+ui_print("           Thank you            ");
+ui_print("--------------------------------");

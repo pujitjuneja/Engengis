@@ -1,0 +1,154 @@
+#!/system/bin/sh
+# Copyright (c) 2012, Jake "redmaner" van der Putten
+# Engengis project
+
+SCHEDULDER=/system/etc/init.d/S28scheduler
+SETTINGS=/data/settings.conf
+BML=`ls -d /sys/block/bml*`;
+MMC=`ls -d /sys/block/mmc*`;
+STL=`ls -d /sys/block/stl*`;
+TFSR=`ls -d /sys/block/tfsr*`;
+ZRAM=`ls -d /sys/block/zram*`;
+
+mount -o remount,rw /system
+clear
+echo
+echo " #########################"
+echo " #  Engengis.Charlie     #" 
+echo " #########################"
+echo 
+echo " 1 - Set BFQ scheduler"
+echo " 2 - Set CFQ scheduler"
+echo " 3 - Set Deadline scheduler"
+echo " 4 - Set Noop scheduler"
+echo " 5 - set VR scheduler"
+echo " 6 - set Simple scheduler"
+echo " 7 - Check I/O scheduler support"
+echo " 8 - Remove scheduler settings"
+echo " b - Back"
+if [ -e $SCHEDULER ]; then
+  if [ $(cat $SCHEDULER | grep "# BFQ scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = BFQ"
+  elif [ $(cat $SCHEDULER | grep "# CFQ scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = CFQ"
+  elif [ $(cat $SCHEDULER | grep "# Deadline scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = Deadline"
+  elif [ $(cat $SCHEDULER | grep "# Noop scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = Noop"
+  elif [ $(cat $SCHEDULER | grep "# SIO scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = SIO"
+  elif [ $(cat $SCHEDULER | grep "# VR scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = VR"
+  fi;
+fi;
+echo
+echo -n "Please enter your choice:"; read option;
+
+case "$option" in
+  "1")
+  if [ -e $SCHEDULER ]; then
+        rm -f $SCHEDULER
+  fi;
+  cp /system/etc/engengis/S28bfqscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=bfq" >> $SETTINGS;
+  clear
+  engengiss
+  ;;
+  "2")
+  if [ -e $SCHEDULER ]; then
+        rm -f $SCHEDULER
+  fi;
+  cp /system/etc/engengis/S28cfqscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=cfq" >> $SETTINGS;
+  clear
+  engengiss
+  ;;
+  "3")
+  if [ -e $SCHEDULER ]; then
+        rm -f $SCHEDULER
+  fi;
+  cp /system/etc/engengis/S28deadlinescheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=deadline" >> $SETTINGS;
+  clear
+  engengiss
+  ;;
+  "4")
+  if [ -e $SCHEDULER ]; then
+        rm -f $SCHEDULER
+  fi;
+  cp /system/etc/engengis/S28noopscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=noop" >> $SETTINGS;
+  clear
+  engengiss
+  ;;
+  "5")
+  if [ -e $SCHEDULER ]; then
+        rm -f $SCHEDULER
+  fi;
+  cp /system/etc/engengis/S28vrscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=vr" >> $SETTINGS;
+  clear
+  engengiss
+  ;;
+  "6")
+  if [ -e $SCHEDULER ]; then
+        rm -f $SCHEDULER
+  fi;
+  cp /system/etc/engengis/S28sioscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=sio" >> $SETTINGS;
+  clear
+  engengiss
+  ;;
+  "7")
+  clear
+  for i in $MMC $BML $STL $TFSR $ZRAM;  do
+      cat $i/queue/scheduler
+  done;
+  sleep 7
+  clear
+  engengiss
+  ;;
+  "8")
+  if [ -e $SCHEDULER ]; then
+        rm -f $SCHEDULER
+  fi;
+  echo
+  echo "Removed scheduler settings"
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=default" >> $SETTINGS;
+  sleep 2
+  clear
+  engengiss
+  ;;
+  "b" | "B")
+  clear
+  engengis
+  ;;
+esac
+
+
+

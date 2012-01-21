@@ -1,0 +1,9 @@
+#!/system/bin/sh
+# Copyright (c) 2012, redmaner
+
+# Lulzactive governor
+if [ -e /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
+        echo "lulzactive" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+fi
+
+

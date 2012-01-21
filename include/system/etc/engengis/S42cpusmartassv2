@@ -1,0 +1,9 @@
+#!/system/bin/sh
+# Copyright (c) 2012, redmaner
+
+# SmartassV2 governor
+if [ -e /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
+        echo "smartassv2" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+fi
+
+

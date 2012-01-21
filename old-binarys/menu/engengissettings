@@ -1,0 +1,307 @@
+#!/system/bin/sh
+# Copyright (c) 2012, Jake "redmaner" van der Putten
+# Engengis project
+
+LOG=/data/engengis.log
+CONFIG=/data/engengis.conf
+SETTINGS=/data/settings.conf
+SCHEDULER=/system/etc/init.d/S28scheduler
+READSPEED=/system/etc/init.d/S35sdreadspeed
+GOVERNOR=/system/etc/init.d/S42cpugovernor
+
+entry () {
+mount -o remount,rw /system
+clear
+echo
+echo " #########################"
+echo " #  Engengis.Charlie     #" 
+echo " #########################"
+echo 
+echo " 1 - Wipe init.d folder"
+echo " 2 - Disable all tweaks"
+echo " 3 - Load tweaks from settings file"
+if [ $(cat $CONFIG | grep "otasupport=on" | wc -l) -gt 0 ]; then
+     echo " 4 - Disable OTA update support"
+else
+     echo " 4 - Enable OTA update support"
+fi;
+echo " 5 - Log options"
+echo " 6 - Uninstall Engengis"
+echo " b - Back"
+echo
+echo -n "Please enter your choice:"; read option;
+  case "$option" in
+    "1")
+    echo "Do you want to wipe init.d folder?"
+    echo "[y or n]"
+    read initd
+    ;;
+    "2")
+    clear
+    echo "The following tweaks are enabled:"
+    echo
+    cat $SETTINGS
+    echo
+    echo "Do you want to disable them all?"
+    echo "[y or n]"
+    read disablealltweaks
+    ;;
+    "3")
+    clear 
+    echo "The following tweaks are loaded in the settings file:"
+    echo
+    cat $SETTINGS
+    echo 
+    echo "Do you want to enable these settings?"
+    echo "[y or n]"
+    read restore
+    ;;
+    "4")
+    if [ $(cat $CONFIG | grep "otasupport=on" | wc -l) -gt 0 ]; then
+          sed -i '/otasupport=*/ d' $CONFIG
+          echo "otasupport=off" >> $CONFIG
+    else
+          sed -i '/otasupport=*/ d' $CONFIG
+          echo "otasupport=on" >> $CONFIG
+    fi;
+    clear
+    engengissettings
+    ;;
+    "5")
+    clear
+    echo " 1 - View log"
+    echo " 2 - Remove log"
+    echo " b - back"
+    read log
+    ;;
+    "6")
+    clear
+    echo " 1 - Unistall engengis files on /system"
+    echo " 2 - Unistall all engengis files (system + data)"
+    echo " b - Back"
+    read engengis
+    ;;
+    "b" | "B")
+    clear
+    engengis
+    ;;
+  esac
+}
+
+tweaks () {
+case "$initd" in
+  "y" | "Y")
+  if [ -d /system/etc/init.d ]; then
+     rm -rf /system/etc/init.d
+     echo
+     echo "init.d wiped! Reboot phone!"
+     sleep 2
+  else
+     echo "init.d folder not found!"
+     sleep 2 
+  fi;
+  clear
+  engengissettings
+  ;;
+  "n" | "N")
+  clear
+  engengissettings
+  ;;
+esac
+
+case "$disablealltweaks" in
+  "y" | "Y")
+  if [ -e /system/etc/init.d/S07hsstweak ]; then
+      rm -f /system/etc/init.d/S07hsstweak;
+      echo "System tweak DISABLED";
+      sed -i '/systemtweak=*/ d' $SETTINGS;
+      echo "systemtweak=off" >> $SETTINGS;
+  fi;
+  if [ -e /system/etc/init.d/S14zipalign ]; then
+      rm -f /system/etc/init.d/S14zipalign;
+      echo "Zipalign during boot DISABLED";
+      sed -i '/zipalignduringboot=*/ d' $SETTINGS;
+      echo "zipalignduringboot=off" >> $SETTINGS;
+  fi;
+  if [ -e /system/etc/init.d/S49dropcaches ]; then
+      rm -f /system/etc/init.d/S49dropcaches;
+      echo "Drop caches during boot DISABLED";
+      sed -i '/dropcachesduringboot=*/ d' $SETTINGS;
+      echo "dropcachesduringboot=off" >> $SETTINGS;
+  fi;
+  if [ -e $SCHEDULER ]; then
+      rm -f $SCHEDULER;
+      echo "Removed scheduler settings";
+      sed -i '/ioscheduler=*/ d' $SETTINGS;
+      echo "ioscheduler=default" >> $SETTINGS;
+  fi;
+  if [ -e $READSPEED ]; then
+      rm -f $READSPEED;
+      echo "Removed SD-Readspeed settings";
+      sed -i '/sdreadspeed=*/ d' $SETTINGS;
+      echo "sdreadspeed=default" >> $SETTINGS;
+  fi;
+  if [ -e $GOVERNOR ]; then
+      rm -f $GOVERNOR;
+      echo "Removed governor settings";
+      sed -i '/cpugovernor=*/ d' $SETTINGS;
+      echo "cpugovernor=default" >> $SETTINGS;
+  fi;
+  clear
+  engengissettings
+  ;;
+  "n" | "N")
+  clear 
+  engengissettings
+  ;;
+esac
+
+case "$restore" in
+  "y" | "Y")
+  if [ $(cat $SETTINGS | grep "systemtweak=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S07hsstweak /system/etc/init.d/S07hsstweak;
+       chmod 777 /system/etc/init.d/S07hsstweak;
+  fi;
+  if [ $(cat $SETTINGS | grep "zipalignduringboot=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S14zipalign /system/etc/init.d/S14zipalign;
+       chmod 777 /system/etc/init.d/S14zipalign;
+  fi;
+  if [ $(cat $SETTINGS | grep "dropcachesduringboot=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S49dropcaches /system/etc/init.d/S49dropcaches;
+       chmod 777 /system/etc/init.d/S49dropcaches;
+  fi;
+  if [ $(cat $SETTINGS | grep "ioscheduler=bfq" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S28bfqscheduler $SCHEDULER;
+       chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=cfq" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28cfqscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=deadline" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28deadlinescheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=noop" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28noopscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=vr" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28vrscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=sio" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28sioscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  fi;
+  if [ $(cat $SETTINGS | grep "sdreadspeed=256" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S35sd256 $READSPEED;
+       chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=512" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd512 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=1024" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd1024 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=2048" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd2048 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=3072" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd3072 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=4096" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd4096 $READSPEED;
+         chmod 777 $READSPEED;
+  fi;
+  if [ $(cat $SETTINGS | grep "cpugovernor=conservative" | wc -l) -gt 0 ]; then
+      cp /system/etc/engengis/S42cpuconservative $GOVERNOR;
+      chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=ondemand" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuondemand $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=smartassv2" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpusmartassv2 $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=interactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuinteractive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=lulzactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpululzactive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  fi;
+  clear
+  engengissettings
+  ;;
+  "n" | "N")
+  clear
+  engengissettings ;;
+esac
+
+case "$log" in
+  "1")
+  cp $LOG /sdcard/engengis/engengis.log
+  echo "Find log on /sdcard/engengis/engengis.log"
+  sleep 2
+  clear
+  engengissettings
+  ;;
+  "2")
+  rm -f $LOG
+  echo "Log removed"
+  sleep 2
+  clear
+  engengissettings
+  ;;
+  "b" | "B")
+  clear
+  engengissettings
+  ;;
+esac
+
+case "$engengis" in
+  "1")
+  rm -rf /system/etc/engengis
+  rm -f /system/etc/init.d/S07hsstweak
+  rm -f /system/etc/init.d/S14zipalign
+  rm -f /system/etc/init.d/S28scheduler
+  rm -f /system/etc/init.d/S35sdreadspeed
+  rm -f /system/etc/init.d/S42cpugovernor
+  rm -f /system/etc/init.d/S49dropcaches
+  rm -f /system/bin/engengis
+  rm -f /system/bin/engengisg
+  rm -f /system/bin/engengisr
+  rm -f /system/bin/engengiss
+  rm -f /system/bin/engengishss
+  rm -f /system/bin/engengissettings
+  echo
+  echo "Uninstalled engengis! Phone will reboot!"
+  sleep 2
+  reboot 
+  ;;
+  "2")
+  rm -rf /system/etc/engengis
+  rm -rf /sdcard/engengis
+  rm -f /system/etc/init.d/S07hsstweak
+  rm -f /system/etc/init.d/S14zipalign
+  rm -f /system/etc/init.d/S28scheduler
+  rm -f /system/etc/init.d/S35sdreadspeed
+  rm -f /system/etc/init.d/S42cpugovernor
+  rm -f /system/etc/init.d/S49dropcaches
+  rm -f /system/bin/engengis
+  rm -f /system/bin/engengisg
+  rm -f /system/bin/engengisr
+  rm -f /system/bin/engengiss
+  rm -f /system/bin/engengishss
+  rm -f /system/bin/engengissettings
+  rm -f $CONFIG
+  rm -f $LOG
+  rm -f $SETTINGS
+  echo
+  echo "Uninstalled engengis! Phone will reboot!"
+  sleep 2
+  reboot 
+  ;;
+  "b" | "B")
+  clear
+  engengissettings
+  ;;
+esac
+}
+
+entry;
+

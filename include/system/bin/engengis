@@ -1,0 +1,1846 @@
+#!/system/bin/sh
+# Copyright (c) 2012, Jake "redmaner" van der Putten
+# Engengis project
+# Codename: Delta Build 3 
+# Universal Build 46
+
+LOG=/data/engengis.log
+CONFIG=/data/engengis.conf
+SETTINGS=/data/settings.conf
+SCHEDULER=/system/etc/init.d/S28scheduler
+READSPEED=/system/etc/init.d/S35sdreadspeed
+GOVERNOR=/system/etc/init.d/S42cpugovernor
+BPROP=/system/build.prop
+VERSION=/system/etc/engengis/version
+RAMSCRIPT=/system/etc/init.d/S00ramscript
+
+# -------------------------------------------------------------------------
+# Fix ramleaks during engengis execution
+# -------------------------------------------------------------------------
+drop () {
+while :
+  do
+    sync;
+    echo "3" > /proc/sys/vm/drop_caches;
+    echo "1" > /proc/sys/vm/drop_caches;
+    sleep 120;
+  done & 
+}
+
+# -------------------------------------------------------------------------
+# Check requirements to run engengis
+# -------------------------------------------------------------------------
+check () {
+if [ -e /sdcard/updater.sh ]; then
+   rm -f /sdcard/updater.sh
+fi;
+mount -o remount,rw /system
+clear
+if [ -e $LOG ]; then
+    echo " " >> $LOG;
+    echo "`date`" >> $LOG;
+else
+    echo "Created log on `date`" >> $LOG
+fi;
+
+if [ -e /system/xbin/su ]; then
+    echo "Root = Ok" >> $LOG;
+    echo "SU binary detected: /system/xbin/su" >> $LOG;
+elif [ -e /system/bin/su ]; then
+    echo "Root = Ok" >> $LOG;
+    echo "SU binary detected: /system/bin/su" >> $LOG;
+else
+    echo "Root = failure" >> $LOG;
+    echo "SU binary not detected" >> $LOG;
+    echo "SU binary has not been found!"
+    echo "Please be sure you are rooted"
+    exit
+fi;
+
+if [ -e /system/xbin/busybox ]; then
+    echo "Busybox = Ok" >> $LOG;
+    echo "Busybox detected: /system/xbin/busybox" >> $LOG;
+elif [ -e /system/bin/busybox ]; then
+    echo "Busybox = Ok" >> $LOG;
+    echo "Busybox detected: /system/bin/busybox" >> $LOG;
+else
+    echo "Root = failure" >> $LOG;
+    echo "SU binary not detected" >> $LOG;
+    echo "SU binary has not been found!"
+    echo "Please be sure you are rooted"
+    exit
+fi;
+
+if [ -d /system/etc/init.d ]; then
+    echo "init.d folder = Ok" >> $LOG;
+else
+    mkdir /system/etc/init.d
+    echo "Created init.d folder" >> $LOG;
+    echo "Created init.d folder"
+    sleep 1
+fi;
+
+if [ -e $SETTINGS ]; then
+    echo "Settings file = Ok" >> $LOG;
+else
+    cat > $SETTINGS << EOF
+systemtweak=
+zipalignduringboot=
+dropcachesduringboot=
+internettweaks=
+ioscheduler=default
+sdreadspeed=default
+cpugovernor=default
+EOF
+    echo "Settings file created" >> $LOG;
+    echo "Settings file created"
+    sleep 1
+fi;
+
+if [ -e $CONFIG ]; then
+    echo "Configuration file = Ok" >> $LOG;
+else
+    cat > $CONFIG << EOF
+otasupport=off
+status=firstboot
+EOF
+    echo "Configuration file created" >> $LOG;
+    echo "Created configuration file"
+    sleep 1
+fi;
+
+if [ $(cat $CONFIG | grep "disclaimer=accepted" | wc -l) -gt 0 ]; then
+     echo "Disclaimer = Ok" >> $LOG;
+else
+     echo "------------------------"
+     echo "Engengis.Disclaimer     "
+     echo "------------------------"
+     echo
+     echo "** Use at your own risk!"
+     echo
+     echo "** If engengis bricks your phone or your girlfriend breaks up with you"
+     echo
+     echo "** then don't point at us, we'll laugh at you!"
+     echo
+     echo "** You decided to use engengis so it's your responsibility!"
+     echo
+     echo "Do you accept the disclaimer?"
+     echo "[y or n]"
+     read disclaimer
+fi;
+
+if [ $(cat $CONFIG | grep "version=charlie" | wc -l) -gt 0 ]; then
+     sed -i '/systemtweak=*/ d' $SETTINGS;
+     sed -i '/internettweaks=*/ d' $SETTINGS;
+     sed -i '/lmk=*/ d' $SETTINGS;
+     echo "Cleaned up settings file..."
+     echo "Cleaned up settings file" >> $LOG
+     sleep 1 
+fi;
+
+if [ $(cat $CONFIG | grep "version=delta" | wc -l) -gt 0 ]; then
+    echo "Engengis.Delta detected" >> $LOG;
+else
+    sed -i '/version=*/ d' $CONFIG;
+    echo "version=delta" >> $CONFIG;
+fi;
+
+case "$disclaimer" in
+  "y" | "Y")
+  clear
+  sed -i '/disclaimer=*/ d' $CONFIG;
+  echo "disclaimer=accepted" >> $CONFIG;
+  clear; status;;
+  "n" | "N")
+  clear
+  exit
+  ;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Check status of engengis
+# -------------------------------------------------------------------------
+status () {
+if [ $(cat $CONFIG | grep "status=firstboot" | wc -l) -gt 0 ]; then
+     rm -f /data/updated
+     clear
+     echo "You are using Engengis for the first time!"
+     echo "To help you out we selected a few tweaks for you"
+     echo "Those tweaks are:"
+     echo
+     echo "- Zipalign during boot"
+     echo "- Dropcaches during boot"
+     echo "- SD readspeed 256kb"
+     echo "- Internet speed tweaks"
+     echo 
+     echo "Do you want to enable them?"
+     echo "[y or n]"
+     read firstboot
+elif [ $(cat $CONFIG | grep "status=updated" | wc -l) -gt 0 ]; then
+       rm -f /data/updated
+       clear
+       echo "Engengis has been updated!"
+       echo "Your settings are removed!"
+       echo "Saved the following settings:"
+       echo
+       cat $SETTINGS
+       echo
+       echo "Do you want to restore them?"
+       echo "[y or n]"
+       read updated
+else
+    echo "Engengis running fine" >> $LOG
+fi;
+
+if [ -e /data/updated ]; then
+     rm -f /data/updated
+     echo "Engengis has been updated!"
+     echo "Your settings are removed!"
+     echo "Saved the following settings:"
+     echo
+     cat $SETTINGS
+     echo
+     echo "Do you want to restore them?"
+     echo "[y or n]"
+     read updated
+fi;
+ 
+case "$firstboot" in
+  "y" | "Y")
+  cp /system/etc/engengis/S14zipalign /system/etc/init.d/S14zipalign;
+  chmod 777 /system/etc/init.d/S14zipalign;
+  sed -i '/zipalignduringboot=*/ d' $SETTINGS;
+  echo "zipalignduringboot=on" >> $SETTINGS;
+  cp /system/etc/engengis/S49dropcaches /system/etc/init.d/S49dropcaches;
+  chmod 777 /system/etc/init.d/S49dropcaches;
+  sed -i '/dropcachesduringboot=*/ d' $SETTINGS;
+  echo "dropcachesduringboot=on" >> $SETTINGS;
+  cp /system/etc/engengis/S35sd256 $READSPEED;
+  chmod 777 $READSPEED;
+  sed -i '/sdreadspeed=*/ d' $SETTINGS;
+  echo "sdreadspeed=256" >> $SETTINGS;
+  cp /system/etc/engengis/S56internet /system/etc/init.d/S56internet;
+  chmod 777 /system/etc/init.d/S56internet;
+  sed -i '/internetspeed=*/ d' $SETTINGS;
+  echo "internetspeed=on" >> $SETTINGS;
+  clear
+  echo "Recommanded tweaks are now ENABLED"
+  sleep 2
+  sed -i '/status=*/ d' $CONFIG;
+  echo "status=normal" >> $CONFIG;
+  clear; ramscriptoption;;
+  "n" | "N")
+  clear
+  sed -i '/status=*/ d' $CONFIG;
+  echo "status=normal" >> $CONFIG;
+  clear; ramscriptoption;;
+esac
+
+case "$updated" in
+  "y" | "Y")
+  if [ $(cat $SETTINGS | grep "zipalignduringboot=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S14zipalign /system/etc/init.d/S14zipalign;
+       chmod 777 /system/etc/init.d/S14zipalign;
+  fi;
+  if [ $(cat $SETTINGS | grep "dropcachesduringboot=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S49dropcaches /system/etc/init.d/S49dropcaches;
+       chmod 777 /system/etc/init.d/S49dropcaches;
+  fi;
+  if [ $(cat $SETTINGS | grep "internetspeed=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S56internet /system/etc/init.d/S56internet;
+       chmod 777 /system/etc/init.d/S56internet;
+  fi;
+  if [ $(cat $SETTINGS | grep "internetsecurity=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S63internetsecurity /system/etc/init.d/S63internetsecurity;
+       chmod 777 /system/etc/init.d/S63internetsecurity;
+  fi;
+  if [ $(cat $SETTINGS | grep "ioscheduler=bfq" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S28bfqscheduler $SCHEDULER;
+       chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=cfq" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28cfqscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=deadline" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28deadlinescheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=noop" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28noopscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=vr" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28vrscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=sio" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28sioscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  fi;
+  if [ $(cat $SETTINGS | grep "sdreadspeed=256" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S35sd256 $READSPEED;
+       chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=512" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd512 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=1024" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd1024 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=2048" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd2048 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=3072" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd3072 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=4096" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd4096 $READSPEED;
+         chmod 777 $READSPEED;
+  fi;
+  if [ $(cat $SETTINGS | grep "cpugovernor=conservative" | wc -l) -gt 0 ]; then
+      cp /system/etc/engengis/S42cpuconservative $GOVERNOR;
+      chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=ondemand" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuondemand $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=smartassv2" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpusmartassv2 $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=interactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuinteractive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=lulzactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpululzactive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=performance" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuperformance $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  fi;
+  clear
+  echo "Restored old settings!"
+  sed -i '/status=*/ d' $CONFIG;
+  echo "status=normal" >> $CONFIG;
+  clear; ramscriptoption;;
+  "n" | "N")
+  clear
+  echo "Starting engengis..."
+  sed -i '/status=*/ d' $CONFIG;
+  echo "status=normal" >> $CONFIG;
+  clear; ramscriptoption;;
+esac
+}
+
+ramscriptoption () {
+clear
+echo "Do you want to set your systemtweak now?"
+echo "[y or n]"
+read optionram
+case "$optionram" in
+  "y" | "Y") clear; ramscriptconfig;;
+  "n" | "N") clear; entry;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Run engengis main menu
+# -------------------------------------------------------------------------
+entry () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - System tweaks" 
+echo " 2 - I/O scheduler settings" 
+echo " 3 - SD-Readspeed settings"
+echo " 4 - CPU governor settings"
+echo " 5 - Disply resolution (dpi)"
+echo " 6 - Build.prop optimizations"
+echo " 7 - Engengis settings"
+echo
+if [ $(cat $CONFIG | grep "otasupport=on" | wc -l) -gt 0 ]; then
+    echo " u - Check for updates" 
+fi;
+echo " r - Reboot (apply changes)"
+echo " e - Exit"
+echo
+echo -n "Please enter your choice:"; read option;
+  case "$option" in
+    "1") clear; systemtweaks;;
+    "2") clear; schedulersettings;;
+    "3") clear; readspeedsettings;;
+    "4") clear; governorsettings;;
+    "5") clear; dpimenu;;
+    "6") clear; buildprop;;
+    "7") clear; settingsmenu;;
+    "u" | "U")
+    if [ $(cat $CONFIG | grep "otasupport=on" | wc -l) -gt 0 ]; then
+        clear
+        echo "Starting updater, please wait..."
+        wget -q http://dl.dropbox.com/u/26139869/engengis/updater.sh -O /sdcard/updater.sh
+        chmod 777 /sdcard/updater.sh
+        sh /sdcard/updater.sh
+    else
+        exit
+    fi;
+    ;;
+    "r" | "R") reboot ;;
+    "e" | "E") exit ;;
+  esac
+}
+
+# -------------------------------------------------------------------------
+# Engengis system tweaks menu
+# -------------------------------------------------------------------------
+systemtweaks () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - Configure systemtweak" 
+if [ -e /system/etc/init.d/S14zipalign ]; then
+      echo " 2 - Disable zipalign during boot" 
+else
+      echo " 2 - Enable zipalign during boot" 
+fi;
+echo " 3 - Optimize sqlite db's"
+if [ -e /system/etc/init.d/S49dropcaches ]; then
+      echo " 4 - Disable drop caches during boot" 
+else
+      echo " 4 - Enable drop caches during boot" 
+fi;
+if [ -e /system/etc/init.d/S56internet ]; then
+      echo " 5 - Disable internet speed tweaks" 
+else
+      echo " 5 - Enable internet speed tweaks" 
+fi;
+if [ -e /system/etc/init.d/S63internetsecurity ]; then
+      echo " 6 - Disable internet security tweaks" 
+else
+      echo " 6 - Enable internet security tweaks" 
+fi;
+echo " b - Back"
+echo
+echo -n "Please enter your choice:"; read tweaks;
+  case "$tweaks" in
+    "1") ramscriptconfig;;
+    "2")
+    if [ -e /system/etc/init.d/S14zipalign ]; then
+          rm -f /system/etc/init.d/S14zipalign
+          rm -f /data/zipalign.db
+          rm -f /data/zipalign.log
+          sed -i '/zipalignduringboot=*/ d' $SETTINGS;
+          echo "zipalignduringboot=off" >> $SETTINGS;
+          sleep 2
+          clear; systemtweaks;
+    else
+          cp /system/etc/engengis/S14zipalign /system/etc/init.d/S14zipalign
+          rm -f /data/zipalign.db
+          rm -f /data/zipalign.log
+          chmod 777 /system/xbin/zipalign
+          chmod 777 /system/etc/init.d/S14zipalign
+          sed -i '/zipalignduringboot=*/ d' $SETTINGS;
+          echo "zipalignduringboot=on" >> $SETTINGS;
+          sleep 2
+          clear; systemtweaks;
+    fi;
+    ;;
+    "3")
+    clear
+    echo "Ignore all errors during proces!"
+    echo "Errors won't harm your phone!"
+    sleep 3
+    clear
+    echo "Optimizing Sqlite db's please wait..."
+    sleep 1
+    # Thanks to pikachu01 for this script.
+    # All credits for this script goes to him.
+	for i in \
+	`busybox find /data -iname "*.db"`; 
+	do \
+		/system/xbin/sqlite3 $i 'VACUUM;'; 
+		/system/xbin/sqlite3 $i 'REINDEX;'; 
+	done;
+	if [ -d "/dbdata" ]; then
+		for i in \
+		`busybox find /dbdata -iname "*.db"`; 
+		do \
+			/system/xbin/sqlite3 $i 'VACUUM;'; 
+			/system/xbin/sqlite3 $i 'REINDEX;'; 
+		done;
+	fi;
+	if [ -d "/datadata" ]; then
+		for i in \
+		`busybox find /datadata -iname "*.db"`; 
+		do \
+			/system/xbin/sqlite3 $i 'VACUUM;'; 
+			/system/xbin/sqlite3 $i 'REINDEX;'; 
+		done;
+	fi;
+	for i in \
+	`busybox find /sdcard -iname "*.db"`; 
+	do \
+		/system/xbin/sqlite3 $i 'VACUUM;'; 
+		/system/xbin/sqlite3 $i 'REINDEX;'; 
+	done;
+    clear; systemtweaks;;
+    "4")
+    if [ -e /system/etc/init.d/S49dropcaches ]; then 
+       rm -f /system/etc/init.d/S49dropcaches
+       sed -i '/dropcachesduringboot=*/ d' $SETTINGS;
+       echo "dropcachesduringboot=off" >> $SETTINGS;
+       sleep 2
+       clear; systemtweaks;
+    else
+       cp /system/etc/engengis/S49dropcaches /system/etc/init.d/S49dropcaches
+       chmod 777 /system/etc/init.d/S49dropcaches
+       sed -i '/dropcachesduringboot=*/ d' $SETTINGS;
+       echo "dropcachesduringboot=on" >> $SETTINGS;
+       sleep 2
+       clear; systemtweaks;
+    fi;
+    ;;
+    "5")
+    if [ -e /system/etc/init.d/S56internet ]; then 
+       rm -f /system/etc/init.d/S56internet
+       sed -i '/internetspeed=*/ d' $SETTINGS;
+       echo "internetspeed=off" >> $SETTINGS;
+       sleep 2
+       clear; systemtweaks;
+    else
+       cp /system/etc/engengis/S56internet /system/etc/init.d/S56internet
+       chmod 777 /system/etc/init.d/S56internet
+       sed -i '/internetspeed=*/ d' $SETTINGS;
+       echo "internetspeed=on" >> $SETTINGS;
+       sleep 2
+       clear; systemtweaks;
+    fi;
+    ;;
+    "6")
+    if [ -e /system/etc/init.d/S63internetsecurity ]; then 
+       rm -f /system/etc/init.d/S63internetsecurity
+       sed -i '/internetsecurity=*/ d' $SETTINGS;
+       echo "internetsecurity=off" >> $SETTINGS;
+       sleep 2
+       clear; systemtweaks;
+    else
+       cp /system/etc/engengis/S63internetsecurity /system/etc/init.d/S63internetsecurity
+       chmod 777 /system/etc/init.d/S63internetsecurity
+       sed -i '/internetsecurity=*/ d' $SETTINGS;
+       echo "internetsecurity=on" >> $SETTINGS;
+       sleep 2
+       clear; systemtweaks;
+    fi;
+    ;;
+    "b" | "B")
+    clear; entry;;
+    "r" | "R") reboot ;;
+ esac
+}
+
+# -------------------------------------------------------------------------
+# Engengis IO scheduler menu
+# -------------------------------------------------------------------------
+schedulersettings () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - Set BFQ scheduler"
+echo " 2 - Set CFQ scheduler"
+echo " 3 - Set Deadline scheduler"
+echo " 4 - Set Noop scheduler"
+echo " 5 - set VR scheduler"
+echo " 6 - set Simple scheduler"
+echo " 7 - Check I/O scheduler support"
+echo " 8 - Remove scheduler settings"
+echo " b - Back"
+if [ -e $SCHEDULER ]; then
+  if [ $(cat $SCHEDULER | grep "# BFQ scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = BFQ"
+  elif [ $(cat $SCHEDULER | grep "# CFQ scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = CFQ"
+  elif [ $(cat $SCHEDULER | grep "# Deadline scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = Deadline"
+  elif [ $(cat $SCHEDULER | grep "# Noop scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = Noop"
+  elif [ $(cat $SCHEDULER | grep "# SIO scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = SIO"
+  elif [ $(cat $SCHEDULER | grep "# VR scheduler" | wc -l) -gt 0 ]; then
+        echo
+        echo "--------------------------------"
+        echo "I/O scheduler = VR"
+  fi;
+fi;
+echo
+echo -n "Please enter your choice:"; read options;
+
+case "$options" in
+  "1")
+  cp /system/etc/engengis/S28bfqscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=bfq" >> $SETTINGS;
+  clear; schedulersettings;;
+  "2")
+  cp /system/etc/engengis/S28cfqscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=cfq" >> $SETTINGS;
+  clear; schedulersettings;;
+  "3")
+  cp /system/etc/engengis/S28deadlinescheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=deadline" >> $SETTINGS;
+  clear; schedulersettings;;
+  "4")
+  cp /system/etc/engengis/S28noopscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=noop" >> $SETTINGS;
+  clear; schedulersettings;;
+  "5")
+  cp /system/etc/engengis/S28vrscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=vr" >> $SETTINGS;
+  clear; schedulersettings;;
+  "6")
+  cp /system/etc/engengis/S28sioscheduler $SCHEDULER;
+  chmod 777 $SCHEDULER;
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=sio" >> $SETTINGS;
+  clear; schedulersettings;;
+  "7")
+  BML=`ls -d /sys/block/bml*`;
+  MMC=`ls -d /sys/block/mmc*`;
+  MTD=`ls -d /sys/block/mtd*`;
+  STL=`ls -d /sys/block/stl*`;
+  TFSR=`ls -d /sys/block/tfsr*`;
+  ZRAM=`ls -d /sys/block/zram*`;
+  clear
+  for i in $BML $MMC $MTD $STL $TFSR $ZRAM;  do
+      cat $i/queue/scheduler
+  done;
+  sleep 7
+  clear; schedulersettings;;
+  "8")
+  if [ -e $SCHEDULER ]; then
+        rm -f $SCHEDULER
+  fi;
+  echo
+  echo "Removed scheduler settings"
+  sed -i '/ioscheduler=*/ d' $SETTINGS;
+  echo "ioscheduler=default" >> $SETTINGS;
+  sleep 2
+  clear; schedulersettings;;
+  "b" | "B") clear; entry;;
+  "r" | "R") reboot ;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Engengis SD readspeed settings
+# -------------------------------------------------------------------------
+readspeedsettings () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - Set SD-Readspeed to 256kb"
+echo " 2 - Set SD-Readspeed to 512kb"
+echo " 3 - Set SD-Readspeed to 1024kb"
+echo " 4 - Set SD-Readspeed to 2048kb"
+echo " 5 - Set SD-Readspeed to 3072kb"
+echo " 6 - Set SD-Readspeed to 4096kb"
+echo " 7 - Remove SD-Readspeed settings"
+echo " b - Back"
+if [ -e $READSPEED ]; then
+if [ $(cat $READSPEED | grep "# SD-Readspeed 256" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "SD-Readspeed = 256kb"
+elif [ $(cat $READSPEED | grep "# SD-Readspeed 512" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "SD-Readspeed = 512kb"
+elif [ $(cat $READSPEED | grep "# SD-Readspeed 1024" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "SD-Readspeed = 1024kb"
+elif [ $(cat $READSPEED | grep "# SD-Readspeed 2048" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "SD-Readspeed = 2048kb"
+elif [ $(cat $READSPEED | grep "# SD-Readspeed 3072" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "SD-Readspeed = 3072kb"
+elif [ $(cat $READSPEED | grep "# SD-Readspeed 4096" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "SD-Readspeed = 4096kb"
+fi;
+fi;
+echo
+echo -n "Please enter your choice:"; read optionr;
+  case "$optionr" in
+    "1")
+    cp /system/etc/engengis/S35sd256 $READSPEED;
+    chmod 777 $READSPEED;
+    sed -i '/sdreadspeed=*/ d' $SETTINGS;
+    echo "sdreadspeed=256" >> $SETTINGS;
+    clear; readspeedsettings;;
+    "2")
+    cp /system/etc/engengis/S35sd512 $READSPEED;
+    chmod 777 $READSPEED;
+    sed -i '/sdreadspeed=*/ d' $SETTINGS;
+    echo "sdreadspeed=512" >> $SETTINGS;
+    clear; readspeedsettings;;
+    "3")
+    cp /system/etc/engengis/S35sd1024 $READSPEED;
+    chmod 777 $READSPEED;
+    sed -i '/sdreadspeed=*/ d' $SETTINGS;
+    echo "sdreadspeed=1024" >> $SETTINGS;
+    clear; readspeedsettings;;
+    "4")
+    cp /system/etc/engengis/S35sd2048 $READSPEED;
+    chmod 777 $READSPEED;
+    sed -i '/sdreadspeed=*/ d' $SETTINGS;
+    echo "sdreadspeed=2048" >> $SETTINGS;
+    clear; readspeedsettings;;
+    "5")
+    cp /system/etc/engengis/S35sd3072 $READSPEED;
+    chmod 777 $READSPEED;
+    sed -i '/sdreadspeed=*/ d' $SETTINGS;
+    echo "sdreadspeed=3072" >> $SETTINGS;
+    clear; readspeedsettings;;
+    "6")
+    cp /system/etc/engengis/S35sd4096 $READSPEED;
+    chmod 777 $READSPEED;
+    sed -i '/sdreadspeed=*/ d' $SETTINGS;
+    echo "sdreadspeed=4096" >> $SETTINGS;
+    clear; readspeedsettings;;
+    "7")
+    if [ -e $READSPEED ]; then
+          rm -f $READSPEED
+    fi;
+    echo
+    echo
+    echo "Removed SD-Readspeed settings"
+    sed -i '/sdreadspeed=*/ d' $SETTINGS;
+    echo "sdreadspeed=default" >> $SETTINGS;
+    sleep 2
+    clear; readspeedsettings;;
+    "b" | "B") clear; entry;;
+    "r" | "R") reboot ;;
+  esac
+}
+
+# -------------------------------------------------------------------------
+# Engengis CPU governor settings menu
+# -------------------------------------------------------------------------
+governorsettings () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - Set Conservative governor"
+echo " 2 - Set Ondemand governor"
+echo " 3 - Set Interactive governor"
+echo " 4 - Set lulzactive governor"
+echo " 5 - Set Performance governor"
+echo " 6 - Set SmartassV2 governor"
+echo " 7 - Remove governor settings"
+if [ -e $GOVERNOR ]; then
+   if [ $(cat $GOVERNOR | grep "# Conservative governor" | wc -l) -gt 0 ]; then
+        echo " 8 - Extra governor tweaks"
+   elif [ $(cat $GOVERNOR | grep "# Ondemand governor" | wc -l) -gt 0 ]; then
+        echo " 8 - Extra governor tweaks"
+   fi;
+fi;
+echo " b - Back"
+if [ -e $GOVERNOR ]; then
+if [ $(cat $GOVERNOR | grep "# Conservative governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = CONSERVATIVE"
+elif [ $(cat $GOVERNOR | grep "# Ondemand governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = ONDEMAND"
+elif [ $(cat $GOVERNOR | grep "# SmartassV2 governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = SMARTASS-V2"
+elif [ $(cat $GOVERNOR | grep "# Interactive governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = INTERACTIVE"
+elif [ $(cat $GOVERNOR | grep "# Lulzactive governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = LULZACTIVE"
+elif [ $(cat $GOVERNOR | grep "# Performance governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = PERFORMANCE"
+fi;
+fi;
+echo
+echo -n "Please enter your choice:"; read optiong;
+  case "$optiong" in
+    "1")
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "conservative" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuconservative $GOVERNOR;
+        chmod 777 $GOVERNOR;
+        sed -i '/cpugovernor=*/ d' $SETTINGS;
+        echo "cpugovernor=conservative" >> $SETTINGS;
+   else
+        echo
+        echo "Kernel doesn't support Conservative governor"
+        sleep 2
+    fi;
+    clear; governorsettings;;
+    "2")
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "ondemand" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuondemand $GOVERNOR;
+        chmod 777 $GOVERNOR;
+        sed -i '/cpugovernor=*/ d' $SETTINGS;
+        echo "cpugovernor=ondemand" >> $SETTINGS;
+    else
+        echo
+        echo "Kernel doesn't support Ondemand governor"
+        sleep 2
+    fi;
+    clear; governorsettings;;
+    "3")
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "interactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuinteractive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+        sed -i '/cpugovernor=*/ d' $SETTINGS;
+        echo "cpugovernor=interactive" >> $SETTINGS;
+    else
+        echo
+        echo "Kernel doesn't support Interactive governor"
+        sleep 2
+    fi;
+    clear; governorsettings;;
+    "4")
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "lulzactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpululzactive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+        sed -i '/cpugovernor=*/ d' $SETTINGS;
+        echo "cpugovernor=lulzactive" >> $SETTINGS;
+    else
+        echo
+        echo "Kernel doesn't support lulzactive governor"
+        sleep 2
+    fi;
+    clear; governorsettings;;
+    "5")
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "performance" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuperformance $GOVERNOR;
+        chmod 777 $GOVERNOR;
+        sed -i '/cpugovernor=*/ d' $SETTINGS;
+        echo "cpugovernor=performance" >> $SETTINGS;
+    else
+        echo
+        echo "Kernel doesn't support performance governor"
+        sleep 2
+    fi;
+    clear; governorsettings;;
+    "6")
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "smartassV2" | wc -l) -gt 0 ]; then
+      cp /system/etc/engengis/S42cpusmartassv2 $GOVERNOR;
+      chmod 777 $GOVERNOR;
+      sed -i '/cpugovernor=*/ d' $SETTINGS;
+      echo "cpugovernor=smartassv2" >> $SETTINGS;
+    else
+        echo
+        echo "Kernel doesn't support SmartassV2 governor"
+        sleep 2
+    fi;
+    clear; governorsettings;;
+    "7")
+    if [ -e $GOVERNOR ]; then
+          rm -f $GOVERNOR
+    fi;
+    echo
+    echo "Governor settings removed"
+    sed -i '/cpugovernor=*/ d' $SETTINGS;
+    echo "cpugovernor=default" >> $SETTINGS;
+    sleep 2
+    clear; governorsettings;;
+    "8")
+    clear
+    if [ -e $GOVERNOR ]; then
+         if [ $(cat $GOVERNOR | grep "# Conservative governor" | wc -l) -gt 0 ]; then
+              echo
+              echo "------------------------"
+              echo "Engengis.Delta_`cat $VERSION`" 
+              echo "------------------------"
+              echo 
+              echo "CPU governor = CONSERVATIVE"
+              echo
+              echo " 1 - Set agressive settings"
+              echo " b - Back"
+              echo
+              echo -n "Please enter your choise:"; read conservativetweak;
+         elif [ $(cat $GOVERNOR | grep "# Ondemand governor" | wc -l) -gt 0 ]; then
+              echo
+              echo "------------------------"
+              echo "Engengis.Charlie_`cat $VERSION`" 
+              echo "------------------------"
+              echo 
+              echo "CPU governor = CONSERVATIVE"
+              echo
+              echo " 1 - Set agressive settings"
+              echo " b - Back"
+              echo
+              echo -n "Please enter your choise:"; read ondemandtweak;
+         else
+              echo "There are no extra tweaks available for the current governor"
+              sleep 3
+              clear; governorsettings;
+         fi;
+    fi;;             
+    "b" | "B") clear; entry;;
+    "r" | "R") reboot ;;
+  esac
+
+case "$conservativetweak" in
+  "1") 
+  if [ $(cat $GOVERNOR | grep "# Conservative governor tweaks" | wc -l) -gt 0 ]; then
+       echo
+       echo "Agressive settings already applied"
+       sleep 2
+       clear; governorsettings;
+  else
+       cat >> $GOVERNOR << EOF
+# Conservative governor tweaks
+if [ -e /sys/devices/system/cpu/cpu0/cpufreq/conservative/up_treshold ]; then
+     echo "70" > /sys/devices/system/cpu/cpu0/cpufreq/conservative/up_treshold
+fi;
+if [ -e /sys/devices/system/cpu/cpu0/cpufreq/conservative/down_treshold ]; then 
+     echo "20" > /sys/devices/system/cpu/cpu0/cpufreq/conservative/down_treshold
+fi;
+if [ -e /sys/devices/system/cpu/cpu0/cpufreq/conservative/freq_step ]; then 
+     echo "50" > /sys/devices/system/cpu/cpu0/cpufreq/conservative/freq_step
+fi;
+EOF
+       echo 
+       echo "Agressive settings enabled"
+       sleep 2
+       clear; governorsettings;
+  fi;;
+  "b" | "B") clear; governorsettings;;
+esac
+
+case "$ondemandtweak" in
+  "1") 
+  if [ $(cat $GOVERNOR | grep "# Ondemand governor tweaks" | wc -l) -gt 0 ]; then
+       echo
+       echo "Agressive settings already applied"
+       sleep 2
+       clear; governorsettings;
+  else
+       cat >> $GOVERNOR << EOF
+# Ondemand governor tweaks
+if [ -e /sys/devices/system/cpu/cpu0/cpufreq/conservative/up_treshold ]; then
+     echo "75" > /sys/devices/system/cpu/cpu0/cpufreq/conservative/up_treshold
+fi;
+EOF
+       echo 
+       echo "Agressive settings enabled"
+       sleep 2
+       clear; governorsettings;
+  fi;;
+  "b" | "B") clear; governorsettings;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# DPI menu
+# -------------------------------------------------------------------------
+dpimenu () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - Set dpi to 240 (hdpi)"
+echo " 2 - Set dpi to 220 (hdpi)"
+echo " 3 - Set dpi to 200 (hdpi)"
+echo " 4 - Set dpi to 182 (hdpi)"
+echo
+echo " 5 - Set dpi to 160 (mdpi)"
+echo " 6 - Set dpi to 140 (mdpi)"
+echo
+echo " b - Back"
+echo
+echo "--------------------------------"
+echo "Current:`cat $BPROP | grep "ro.sf.lcd_density=*"`"
+echo
+echo -n "Please enter your choice:"; read changedpi;
+case "$changedpi" in
+  "1")
+  if [ $(cat $BPROP | grep "ro.sf.lcd_density=*" | wc -l) -gt 0 ]; then
+       sed -i '/ro.sf.lcd_density=*/ d' $BPROP;
+       echo "ro.sf.lcd_density=240" >> $BPROP;
+       echo
+       echo "Set dpi to 240"
+       echo "Phone will reboot in a few seconds!"
+       sleep 3
+       reboot
+  else
+       echo
+       echo "Operation failed!"
+       echo "It seems your device is not supported for DPI changes"
+       sleep 3
+       dpimenu;
+  fi;
+  ;;
+  "2")
+  if [ $(cat $BPROP | grep "ro.sf.lcd_density=*" | wc -l) -gt 0 ]; then
+       sed -i '/ro.sf.lcd_density=*/ d' $BPROP;
+       echo "ro.sf.lcd_density=220" >> $BPROP;
+       echo
+       echo "Set dpi to 220"
+       echo "Phone will reboot in a few seconds!"
+       sleep 3
+       reboot
+  else
+       echo
+       echo "Operation failed!"
+       echo "It seems your device is not supported for DPI changes"
+       sleep 3
+       dpimenu;
+  fi;
+  ;;
+  "3")
+  if [ $(cat $BPROP | grep "ro.sf.lcd_density=*" | wc -l) -gt 0 ]; then
+       sed -i '/ro.sf.lcd_density=*/ d' $BPROP;
+       echo "ro.sf.lcd_density=200" >> $BPROP;
+       echo
+       echo "Set dpi to 200"
+       echo "Phone will reboot in a few seconds!"
+       sleep 3
+       reboot
+  else
+       echo
+       echo "Operation failed!"
+       echo "It seems your device is not supported for DPI changes"
+       sleep 3
+       dpimenu;
+  fi;
+  ;;
+  "4")
+  if [ $(cat $BPROP | grep "ro.sf.lcd_density=*" | wc -l) -gt 0 ]; then
+       sed -i '/ro.sf.lcd_density=*/ d' $BPROP;
+       echo "ro.sf.lcd_density=182" >> $BPROP;
+       echo
+       echo "Set dpi to 182"
+       echo "Phone will reboot in a few seconds!"
+       sleep 3
+       reboot
+  else
+       echo
+       echo "Operation failed!"
+       echo "It seems your device is not supported for DPI changes"
+       sleep 3
+       dpimenu;
+  fi;
+  ;;
+  "5")
+  if [ $(cat $BPROP | grep "ro.sf.lcd_density=*" | wc -l) -gt 0 ]; then
+       sed -i '/ro.sf.lcd_density=*/ d' $BPROP;
+       echo "ro.sf.lcd_density=160" >> $BPROP;
+       echo
+       echo "Set dpi to 160"
+       echo "Phone will reboot in a few seconds!"
+       sleep 3
+       reboot
+  else
+       echo
+       echo "Operation failed!"
+       echo "It seems your device is not supported for DPI changes"
+       sleep 3
+       dpimenu;
+  fi;
+  ;;
+  "6")
+  if [ $(cat $BPROP | grep "ro.sf.lcd_density=*" | wc -l) -gt 0 ]; then
+       sed -i '/ro.sf.lcd_density=*/ d' $BPROP;
+       echo "ro.sf.lcd_density=140" >> $BPROP;
+       echo
+       echo "Set dpi to 140"
+       echo "Phone will reboot in a few seconds!"
+       sleep 3
+       reboot
+  else
+       echo
+       echo "Operation failed!"
+       echo "It seems your device is not supported for DPI changes"
+       sleep 3
+       dpimenu;
+  fi;
+  ;;
+  "b" | "B") clear; entry;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Engengis build.prop optimizations menu
+# -------------------------------------------------------------------------
+buildprop () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+if [ $(cat $BPROP | grep "debug.sf.hw=0" | wc -l) -gt 0 ]; then
+     echo " 1 - Enable UI rendering with GPU"
+else
+     echo " 1 - Disable UI rendering with GPU"
+fi;
+if [ $(cat $BPROP | grep "ro.media.enc.jpeg.quality=100" | wc -l) -gt 0 ]; then
+     echo " 2 - Raise jpeg quality to 100% = applied"
+else
+     echo " 2 - Raise jpeg quality to 100%"
+fi;
+if [ $(cat $BPROP | grep "wifi.supplicant_scan_interval=60" | wc -l) -gt 0 ]; then
+     echo " 3 - Set wifi interval to 60 = applied"
+else 
+     echo " 3 - Set wifi interval to 60"
+fi;
+if [ $(cat $BPROP | grep "ro.HOME_APP_ADJ=1" | wc -l) -gt 0 ]; then
+     echo " 4 - Force launcher in memory = applied"
+else
+     echo " 4 - Force launcher in memory"
+fi;
+if [ $(cat $BPROP | grep "ro.telephony.call_ring.delay=0" | wc -l) -gt 0 ]; then
+     echo " 5 - Decrease dialing out delay = applied"
+else
+     echo " 5 - Decrease dialing out delay"
+fi;
+if [ $(cat $BPROP | grep "windowsmgr.max_events_per_sec=60" | wc -l) -gt 0 ]; then
+     echo " 6 - Improve scrolling in lists = applied"
+else
+     echo " 6 - Improve scrolling in lists"
+fi;
+if [ $(cat $BPROP | grep "debug.sf.nobootanimation=1" | wc -l) -gt 0 ]; then
+     echo " 7 - Disable bootanimation = applied"
+else
+     echo " 7 - Disable bootanimation"
+fi;
+echo " 8 - Backup old build.prop"
+echo " 9 - Restore old build.prop"
+echo
+echo " r - Reboot (apply changes)"
+echo " b - Back"
+echo
+echo -n "Please enter your choice:"; read buildprop;
+case "$buildprop" in
+    "1")
+    if [ $(cat $BPROP | grep "debug.sf.hw=0" | wc -l) -gt 0 ]; then
+         sed -i '/debug.sf.hw=*/ d' $BPROP;
+         echo "debug.sf.hw=1" >> $BPROP;
+         echo
+         echo "UI rendering with GPU ENABLED";
+         clear; buildprop;
+    else
+         sed -i '/debug.sf.hw=*/ d' $BPROP;
+         echo "debug.sf.hw=0" >> $BPROP;
+         echo
+         echo "UI rendering with GPU DISABLED";
+         clear; buildprop;
+    fi ;;
+    "2")
+    if [ -e /data/build.prop.bak ]; then
+         sed -i '/ro.media.enc.jpeg.quality=*/ d' $BPROP;
+         echo "ro.media.enc.jpeg.quality=100" >> $BPROP;
+         clear; buildprop;
+    else
+         echo
+         echo "There is no backup off your build.prop";
+         sleep 2;
+         buildprop;
+    fi ;;
+    "3")
+    if [ -e /data/build.prop.bak ]; then
+         sed -i '/wifi.supplicant_scan_interval=*/ d' $BPROP;
+         echo "wifi.supplicant_scan_interval=60" >> $BPROP;
+         clear; buildprop;
+    else
+         echo
+         echo "There is no backup off your build.prop";
+         sleep 2;
+         clear; buildprop;
+    fi ;;
+    "4")
+    if [ -e /data/build.prop.bak ]; then
+         sed -i '/ro.HOME_APP_ADJ=*/ d' $BPROP;
+         echo "ro.HOME_APP_ADJ=1" >> $BPROP;
+         clear; buildprop;
+    else
+         echo
+         echo "There is no backup off your build.prop";
+         sleep 2;
+         clear; buildprop;
+    fi ;;
+    "5")
+    if [ -e /data/build.prop.bak ]; then
+         sed -i '/ro.telephony.call_ring.delay=*/ d' $BPROP;
+         echo "ro.telephony.call_ring.delay=0" >> $BPROP;
+         clear; buildprop;
+    else
+         echo
+         echo "There is no backup off your build.prop";
+         sleep 2;
+         clear; buildprop;
+    fi ;;
+    "6")
+    if [ -e /data/build.prop.bak ]; then
+         sed -i '/windowsmgr.max_events_per_sec=*/ d' $BPROP;
+         echo "windowsmgr.max_events_per_sec=60" >> $BPROP;
+         clear; buildprop;
+    else
+         echo
+         echo "There is no backup off your build.prop";
+         sleep 2;
+         clear; buildprop;
+    fi ;;
+    "7")
+    if [ -e /data/build.prop.bak ]; then
+         sed -i '/debug.sf.nobootanimation=*/ d' $BPROP;
+         echo "debug.sf.nobootanimation=1" >> $BPROP;
+         clear; buildprop;
+    else
+         echo
+         echo "There is no backup off your build.prop";
+         sleep 2;
+         clear; buildprop;
+    fi ;;
+    "8")
+    if [ -e /data/build.prop.bak ]; then
+         echo
+         echo "There is already a backup"
+         echo "Do you want to overwrite it?"
+         echo "[y or n]"
+         read bpropbackup
+    else
+         cp $BPROP /data/build.prop.bak
+         echo
+         echo "Backup created"
+         sleep 2
+         clear; buildprop;
+    fi ;;
+    "9")
+    if [ -e /data/build.prop.bak ]; then
+         rm -f /system/build.prop
+         cp /data/build.prop.bak $BPROP
+         echo
+         echo "Restored back-up!"
+         sleep 2
+         clear; buildprop;
+    else
+         echo
+         echo "There is no backup"
+         sleep 2
+         clear; buildprop;
+    fi ;;
+    "r" | "R") reboot;;
+    "b" | "b") clear; entry;;
+esac
+
+case "$bpropbackup" in
+  "y" | "Y")
+  cp $BPROP /data/build.prop.bak
+  echo
+  echo "New backup created"
+  sleep 2
+  clear; buildprop;;
+  "n" | "N") clear; buildprop;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Engengis settings menu
+# -------------------------------------------------------------------------
+settingsmenu () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - Wipe init.d folder"
+echo " 2 - Disable all tweaks"
+echo " 3 - Load tweaks from settings file"
+if [ $(cat $CONFIG | grep "otasupport=on" | wc -l) -gt 0 ]; then
+     echo " 4 - Disable OTA update support"
+else
+     echo " 4 - Enable OTA update support"
+fi;
+echo " 5 - Log options"
+echo " 6 - Uninstall Engengis"
+echo " 7 - Reset engengis"
+echo " b - Back"
+echo
+echo -n "Please enter your choice:"; read menu;
+  case "$menu" in
+    "1")
+    echo "Do you want to wipe init.d folder?"
+    echo "[y or n]"
+    read initd;;
+    "2")
+    clear
+    echo "The following tweaks are enabled:"
+    echo
+    cat $SETTINGS
+    echo
+    echo "Do you want to disable them all?"
+    echo "[y or n]"
+    read disablealltweaks;;
+    "3")
+    clear 
+    echo "The following tweaks are loaded in the settings file:"
+    echo
+    cat $SETTINGS
+    echo 
+    echo "Do you want to enable these settings?"
+    echo "[y or n]"
+    read restore;;
+    "4")
+    if [ $(cat $CONFIG | grep "otasupport=on" | wc -l) -gt 0 ]; then
+          sed -i '/otasupport=*/ d' $CONFIG
+          echo "otasupport=off" >> $CONFIG
+    else
+          sed -i '/otasupport=*/ d' $CONFIG
+          echo "otasupport=on" >> $CONFIG
+    fi;
+    clear; settingsmenu;;
+    "5")
+    clear
+    echo " 1 - View log"
+    echo " 2 - Remove log"
+    echo " b - back"
+    read log;;
+    "6")
+    clear
+    echo " 1 - Unistall engengis files on /system"
+    echo " 2 - Unistall all engengis files (system + data)"
+    echo " b - Back"
+    read engengis;;
+    "7")
+    echo "This will remove all data from engengis!"
+    echo "That means it reconfigures itself"
+    echo "Do you want to proceed?"
+    echo "[y or n]"
+    read reset;;
+    "b" | "B") clear; entry;;
+    "r" | "R") reboot ;;
+  esac
+
+case "$initd" in
+  "y" | "Y")
+  if [ -d /system/etc/init.d ]; then
+     rm -rf /system/etc/init.d
+     mkdir /system/etc/init.d
+     echo
+     echo "init.d wiped! Reboot phone!"
+     sleep 2
+  else
+     echo "init.d folder not found!"
+     sleep 2 
+  fi;
+  clear; settingsmenu;;
+  "n" | "N") clear; settingsmenu;;
+esac
+
+case "$disablealltweaks" in
+  "y" | "Y")
+  if [ -e $RAMSCRIPT ]; then
+      rm -f $RAMSCRIPT 
+      echo "Systemtweak DISABLED"
+  fi;
+  if [ -e /system/etc/init.d/S14zipalign ]; then
+      rm -f /system/etc/init.d/S14zipalign;
+      echo "Zipalign during boot DISABLED";
+      sed -i '/zipalignduringboot=*/ d' $SETTINGS;
+      echo "zipalignduringboot=off" >> $SETTINGS;
+  fi;
+  if [ -e /system/etc/init.d/S49dropcaches ]; then
+      rm -f /system/etc/init.d/S49dropcaches;
+      echo "Drop caches during boot DISABLED";
+      sed -i '/dropcachesduringboot=*/ d' $SETTINGS;
+      echo "dropcachesduringboot=off" >> $SETTINGS;
+  fi;
+  if [ -e /system/etc/init.d/S56internet ]; then
+      rm -f /system/etc/init.d/S56internet;
+      echo "Internet tweaks DISABLED";
+      sed -i '/internettweaks=*/ d' $SETTINGS;
+      echo "internettweaks=off" >> $SETTINGS;
+  fi;
+  if [ -e $SCHEDULER ]; then
+      rm -f $SCHEDULER;
+      echo "Removed scheduler settings";
+      sed -i '/ioscheduler=*/ d' $SETTINGS;
+      echo "ioscheduler=default" >> $SETTINGS;
+  fi;
+  if [ -e $READSPEED ]; then
+      rm -f $READSPEED;
+      echo "Removed SD-Readspeed settings";
+      sed -i '/sdreadspeed=*/ d' $SETTINGS;
+      echo "sdreadspeed=default" >> $SETTINGS;
+  fi;
+  if [ -e $GOVERNOR ]; then
+      rm -f $GOVERNOR;
+      echo "Removed governor settings";
+      sed -i '/cpugovernor=*/ d' $SETTINGS;
+      echo "cpugovernor=default" >> $SETTINGS;
+  fi;
+  clear; settingsmenu;;
+  "n" | "N") clear; settingsmenu;;
+esac
+
+case "$restore" in
+  "y" | "Y")
+  if [ $(cat $SETTINGS | grep "zipalignduringboot=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S14zipalign /system/etc/init.d/S14zipalign;
+       chmod 777 /system/etc/init.d/S14zipalign;
+  fi;
+  if [ $(cat $SETTINGS | grep "dropcachesduringboot=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S49dropcaches /system/etc/init.d/S49dropcaches;
+       chmod 777 /system/etc/init.d/S49dropcaches;
+  fi;
+  if [ $(cat $SETTINGS | grep "internetspeed=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S56internet /system/etc/init.d/S56internet;
+       chmod 777 /system/etc/init.d/S56internet;
+  fi;
+  if [ $(cat $SETTINGS | grep "internetsecurity=on" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S63internetsecurity /system/etc/init.d/S63internetsecurity;
+       chmod 777 /system/etc/init.d/S63internetsecurity;
+  fi;
+  if [ $(cat $SETTINGS | grep "ioscheduler=bfq" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S28bfqscheduler $SCHEDULER;
+       chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=cfq" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28cfqscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=deadline" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28deadlinescheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=noop" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28noopscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=vr" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28vrscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  elif [ $(cat $SETTINGS | grep "ioscheduler=sio" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S28sioscheduler $SCHEDULER;
+         chmod 777 $SCHEDULER;
+  fi;
+  if [ $(cat $SETTINGS | grep "sdreadspeed=256" | wc -l) -gt 0 ]; then
+       cp /system/etc/engengis/S35sd256 $READSPEED;
+       chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=512" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd512 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=1024" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd1024 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=2048" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd2048 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=3072" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd3072 $READSPEED;
+         chmod 777 $READSPEED;
+  elif [ $(cat $SETTINGS | grep "sdreadspeed=4096" | wc -l) -gt 0 ]; then
+         cp /system/etc/engengis/S35sd4096 $READSPEED;
+         chmod 777 $READSPEED;
+  fi;
+  if [ $(cat $SETTINGS | grep "cpugovernor=conservative" | wc -l) -gt 0 ]; then
+      cp /system/etc/engengis/S42cpuconservative $GOVERNOR;
+      chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=ondemand" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuondemand $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=smartassv2" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpusmartassv2 $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=interactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuinteractive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=lulzactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpululzactive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  elif [ $(cat $SETTINGS | grep "cpugovernor=performance" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuperformance $GOVERNOR;
+        chmod 777 $GOVERNOR;
+  fi;
+  clear; settingsmenu;;
+  "n" | "N") clear; settingsmenu;;
+esac
+
+case "$log" in
+  "1")
+  cp $LOG /sdcard/engengis/engengis.log
+  echo "Find log on /sdcard/engengis/engengis.log"
+  sleep 2
+  clear; settingsmenu;;
+  "2")
+  rm -f $LOG
+  echo "Log removed"
+  sleep 2
+  clear; settingsmenu;;
+  "b" | "B") clear; settingsmenu;;
+esac
+
+case "$engengis" in
+  "1")
+  rm -rf /system/etc/engengis
+  rm -f /system/etc/init.d/S00ramscript
+  rm -f /system/etc/init.d/S07hsstweak
+  rm -f /system/etc/init.d/S14zipalign
+  rm -f /system/etc/init.d/S21hsstweak
+  rm -f /system/etc/init.d/S28scheduler
+  rm -f /system/etc/init.d/S35sdreadspeed
+  rm -f /system/etc/init.d/S42cpugovernor
+  rm -f /system/etc/init.d/S49dropcaches
+  rm -f /system/etc/init.d/S56internet
+  rm -f /system/etc/init.d/S63internetsecurity
+  rm -f /system/bin/engengis
+  rm -f /system/bin/engengisg
+  rm -f /system/bin/engengisr
+  rm -f /system/bin/engengiss
+  rm -f /system/bin/engengishss
+  rm -f /system/bin/engengissettings
+  echo
+  echo "Uninstalled engengis! Phone will reboot!"
+  sleep 2
+  reboot 
+  ;;
+  "2")
+  rm -rf /system/etc/engengis
+  rm -rf /sdcard/engengis
+  rm -f /system/etc/init.d/S00ramscript
+  rm -f /system/etc/init.d/S07hsstweak
+  rm -f /system/etc/init.d/S14zipalign
+  rm -f /system/etc/init.d/S21hsstweak
+  rm -f /system/etc/init.d/S28scheduler
+  rm -f /system/etc/init.d/S35sdreadspeed
+  rm -f /system/etc/init.d/S42cpugovernor
+  rm -f /system/etc/init.d/S49dropcaches
+  rm -f /system/etc/init.d/S56internet
+  rm -f /system/etc/init.d/S63internetsecurity
+  rm -f /system/bin/engengis
+  rm -f /system/bin/engengisg
+  rm -f /system/bin/engengisr
+  rm -f /system/bin/engengiss
+  rm -f /system/bin/engengishss
+  rm -f /system/bin/engengissettings
+  rm -f $CONFIG
+  rm -f $LOG
+  rm -f $SETTINGS
+  rm -f /data/build.prop.bak
+  echo
+  echo "Uninstalled engengis! Phone will reboot!"
+  sleep 2
+  reboot 
+  ;;
+  "b" | "B") clear; settingsmenu;;
+esac
+
+case "$reset" in
+  "y" | "Y")
+  rm -f $LOG
+  rm -f $CONFIG
+  rm -f $SETTINGS
+  rm -rf /sdcard/engengis
+  rm -f /system/etc/init.d/S00ramscript
+  rm -f /system/etc/init.d/S07hsstweak
+  rm -f /system/etc/init.d/S14zipalign
+  rm -f /system/etc/init.d/S21hsstweak
+  rm -f /system/etc/init.d/S28scheduler
+  rm -f /system/etc/init.d/S35sdreadspeed
+  rm -f /system/etc/init.d/S42cpugovernor
+  rm -f /system/etc/init.d/S49dropcaches
+  rm -f /system/etc/init.d/S56internet
+  rm -f /system/etc/init.d/S63internetsecurity
+  echo "Removed data..."
+  echo "Engengis will restart in a few seconds."
+  sleep 2
+  engengis ;;
+  "n" | "N")
+  clear; settingsmenu;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Configure RAM script
+# -------------------------------------------------------------------------
+ramscriptconfig () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+if [ -e $RAMSCRIPT ]; then
+     echo " 1 - Disable systemtweak"
+else
+     echo " 1 - Configure systemtweak"
+fi;
+echo " b - Back"
+echo
+echo -n "Please enter your choice:"; read rammain;
+case "$rammain" in
+  "1")
+  if [ -e $RAMSCRIPT ]; then
+       rm -f $RAMSCRIPT
+       ramscriptconfig;
+  else 
+       cp /system/etc/engengis/S00ramscript $RAMSCRIPT
+       chmod 777 $RAMSCRIPT
+       ramscriptconfigswap;
+  fi;;
+  "b" | "B") ramscriptconfigend;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Configure RAM script (swappiness)
+# -------------------------------------------------------------------------
+ramscriptconfigswap () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - Swap Agressive"
+echo " 2 - Swap Normal"
+echo " 3 - Swap None"
+echo " b - Device default"
+echo
+echo -n "Please enter your choice:"; read ramswap;
+case "$ramswap" in
+  "1") cat >> $RAMSCRIPT << EOF
+if [ -e /proc/sys/vm/swappiness ]; then
+      echo "100" > /proc/sys/vm/swappiness
+fi;
+if [ -e /proc/sys/vm/vfs_cache_pressure ]; then
+      echo "140" > /proc/sys/vm/vfs_cache_pressure
+fi;
+EOF
+  clear; ramscriptconfigdirtyratio;;
+  "2") cat >> $RAMSCRIPT << EOF
+if [ -e /proc/sys/vm/swappiness ]; then
+      echo "60" > /proc/sys/vm/swappiness
+fi;
+if [ -e /proc/sys/vm/vfs_cache_pressure ]; then
+      echo "100" > /proc/sys/vm/vfs_cache_pressure
+fi;
+EOF
+  clear; ramscriptconfigdirtyratio;;
+  "3") cat >> $RAMSCRIPT << EOF
+if [ -e /proc/sys/vm/swappiness ]; then
+      echo "0" > /proc/sys/vm/swappiness
+fi;
+if [ -e /proc/sys/vm/vfs_cache_pressure ]; then
+      echo "25" > /proc/sys/vm/vfs_cache_pressure
+fi;
+EOF
+  clear; ramscriptconfigdirtyratio;;
+  "b" | "B") clear; ramscriptconfigdirtyratio;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Configure RAM script (dirtyratio)
+# -------------------------------------------------------------------------
+ramscriptconfigdirtyratio () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - Dirtyratio 90 - 65"
+echo " 2 - Dirtyratio 75 - 50"
+echo " 3 - Dirtyratio 20 - 15"
+echo " b - Device default"
+echo
+echo -n "Please enter your choice:"; read ramdirty;
+case "$ramdirty" in
+  "1") cat >> $RAMSCRIPT << EOF
+if [ -e /proc/sys/vm/dirty_ratio ]; then
+      echo "90" > /proc/sys/vm/dirty_ratio
+fi;
+if [ -e /proc/sys/vm/dirty_background_ratio ]; then
+      echo "65" > /proc/sys/vm/dirty_background_ratio
+fi;
+EOF
+  clear; ramscriptconfigwriteback;;
+  "2") cat >> $RAMSCRIPT << EOF
+if [ -e /proc/sys/vm/dirty_ratio ]; then
+      echo "75" > /proc/sys/vm/dirty_ratio
+fi;
+if [ -e /proc/sys/vm/dirty_background_ratio ]; then
+      echo "50" > /proc/sys/vm/dirty_background_ratio
+fi;
+EOF
+  clear; ramscriptconfigwriteback;;
+  "3") cat >> $RAMSCRIPT << EOF
+if [ -e /proc/sys/vm/dirty_ratio ]; then
+      echo "20" > /proc/sys/vm/dirty_ratio
+fi;
+if [ -e /proc/sys/vm/dirty_background_ratio ]; then
+      echo "15" > /proc/sys/vm/dirty_background_ratio
+fi;
+EOF
+  clear; ramscriptconfigwriteback;;
+  "b" | "B") clear; ramscriptconfigwriteback;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Configure RAM script (writeback)
+# -------------------------------------------------------------------------
+ramscriptconfigwriteback () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - Expire/writeback = Battery"
+echo " 2 - Expire/writeback = Performance"
+echo " 3 - Expire/writeback = Normal"
+echo " b - Device default"
+echo
+echo -n "Please enter your choice:"; read ramwriteback;
+case "$ramwriteback" in
+  "1") cat >> $RAMSCRIPT << EOF
+if [ -e /proc/sys/vm/dirty_expire_centisecs ]; then
+      echo "1000" > /proc/sys/vm/dirty_expire_centisecs
+fi;
+if [ -e /proc/sys/vm/dirty_writeback_centisecs ]; then
+      echo "2000" > /proc/sys/vm/dirty_writeback_centisecs
+fi;
+EOF
+  clear; ramscriptconfiglmk;;
+  "2") cat >> $RAMSCRIPT << EOF
+if [ -e /proc/sys/vm/dirty_expire_centisecs ]; then
+      echo "500" > /proc/sys/vm/dirty_expire_centisecs
+fi;
+if [ -e /proc/sys/vm/dirty_writeback_centisecs ]; then
+      echo "1000" > /proc/sys/vm/dirty_writeback_centisecs
+fi;
+EOF
+  clear; ramscriptconfiglmk;;
+  "3") cat >> $RAMSCRIPT << EOF
+if [ -e /proc/sys/vm/dirty_expire_centisecs ]; then
+      echo "200" > /proc/sys/vm/dirty_expire_centisecs
+fi;
+if [ -e /proc/sys/vm/dirty_writeback_centisecs ]; then
+      echo "500" > /proc/sys/vm/dirty_writeback_centisecs
+fi;
+EOF
+  clear; ramscriptconfiglmk;;
+  "b" | "B") clear; ramscriptconfiglmk;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Configure RAM script (LowMemoryKiller)
+# -------------------------------------------------------------------------
+ramscriptconfiglmk () {
+clear
+echo
+echo "------------------------"
+echo "Engengis.Delta_`cat $VERSION`" 
+echo "------------------------"
+echo
+echo " 1 - LowMemoryKiller Agressive"
+echo " 2 - LowMemoryKiller Performance"
+echo " 3 - LowMemoryKiller Normal"
+echo " b - Device default"
+echo
+echo -n "Please enter your choice:"; read ramlmk;
+case "$ramlmk" in
+  "1") cat >> $RAMSCRIPT << EOF
+
+# Lowmemorykiller (lmk + adj)
+if [ -e /sys/module/lowmemorykiller/parameters/adj ]; then
+      echo "0,1,2,4,9,15" > /sys/module/lowmemorykiller/parameters/adj;
+fi;
+if [ -e /sys/module/lowmemorykiller/parameters/minfree ]; then
+      echo "8192,10240,12288,14336,16384,20480" > /sys/module/lowmemorykiller/parameters/minfree;
+fi; 
+EOF
+  clear; ramscriptconfigend;;
+  "2") cat >> $RAMSCRIPT << EOF
+
+# Lowmemorykiller (lmk + adj)
+if [ -e /sys/module/lowmemorykiller/parameters/adj ]; then
+      echo "0,1,2,6,8,15" > /sys/module/lowmemorykiller/parameters/adj;
+fi;
+if [ -e /sys/module/lowmemorykiller/parameters/minfree ]; then
+      echo "2048,4096,6144,11264,13312,15360" > /sys/module/lowmemorykiller/parameters/minfree;
+fi;
+EOF
+  clear; ramscriptconfigend;;
+  "3") cat >> $RAMSCRIPT << EOF
+
+# Lowmemorykiller (lmk + adj)
+if [ -e /sys/module/lowmemorykiller/parameters/adj ]; then
+      echo "0,1,2,4,6,15" > /sys/module/lowmemorykiller/parameters/adj;
+fi;
+if [ -e /sys/module/lowmemorykiller/parameters/minfree ]; then
+      echo "2048,3072,4096,6144,7168,8192" > /sys/module/lowmemorykiller/parameters/minfree;
+fi;
+EOF
+  clear; ramscriptconfigend;;
+  "b" | "B") clear; ramscriptconfigend;;
+esac
+}
+
+# -------------------------------------------------------------------------
+# Configure RAM script (end)
+# -------------------------------------------------------------------------
+ramscriptconfigend () {
+clear
+echo " 1 - Back to Engengis main menu"
+echo " 2 - Back to Engengis systemtweaks menu"
+echo
+echo -n "Please enter your choice:"; read ramend;
+case "$ramend" in
+  "1") clear; entry;;
+  "2") clear; systemtweaks;;
+esac
+}
+
+# -------------------------------------------------------------------------
+drop; check; status; entry;
+
