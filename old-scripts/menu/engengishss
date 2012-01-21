@@ -1,0 +1,179 @@
+#!/system/bin/sh
+# Copyright (c) 2012, Jake "redmaner" van der Putten
+# Engengis project
+
+SETTINGS=/data/settings.conf
+
+entry () {
+mount -o remount,rw /system
+clear
+echo
+echo " #########################"
+echo " #  Engengis.Charlie     #" 
+echo " #########################"
+echo 
+if [ -e /system/etc/init.d/S07hsstweak ]; then
+      echo " 1 - Disable system tweak (hss)"
+else
+      echo " 1 - Enable system tweak (hss)"
+fi;
+if [ -e /system/etc/init.d/S14zipalign ]; then
+      echo " 2 - Disable zipalign during boot" 
+else
+      echo " 2 - Enable zipalign during boot" 
+fi;
+echo " 3 - Optimize sqlite db's"
+echo " 4 - Drop caches"
+if [ $(cat /system/build.prop | grep "debug.sf.hw=0" | wc -l) -gt 0 ]; then
+     echo " 5 - Enable UI rendering with GPU"
+else
+     echo " 5 - Disable UI rendering with GPU"
+fi;
+echo " b - Back"
+echo
+echo -n "Please enter your choice:"; read tweaks;
+  case "$tweaks" in
+    "1")
+    if [ -e /system/etc/init.d/S07hsstweak ]; then
+          rm -f /system/etc/init.d/S07hsstweak
+          echo
+          echo "System tweak (hss) DISABLED"
+          sed -i '/systemtweak=*/ d' $SETTINGS;
+          echo "systemtweak=off" >> $SETTINGS;
+          sleep 2
+          clear
+          engengishss
+    else
+          cp /system/etc/engengis/S07hsstweak /system/etc/init.d/S07hsstweak
+          chmod 777 /system/etc/init.d/S07hsstweak
+          echo
+          echo "System tweak (hss) ENABLED"
+          sed -i '/systemtweak=*/ d' $SETTINGS;
+          echo "systemtweak=on" >> $SETTINGS;
+          sleep 2
+          clear
+          engengishss
+    fi; 
+    ;;
+    "2")
+    if [ -e /system/etc/init.d/S14zipalign ]; then
+          rm -f /system/etc/init.d/S14zipalign
+          rm -f /data/zipalign.db
+          rm -f /data/zipalign.log
+          echo
+          echo "Zipalign during boot DISABLED"
+          sed -i '/zipalignduringboot=*/ d' $SETTINGS;
+          echo "zipalignduringboot=off" >> $SETTINGS;
+          sleep 2
+          clear
+          engengishss
+    else
+          cp /system/etc/engengis/S14zipalign /system/etc/init.d/S14zipalign
+          rm -f /data/zipalign.db
+          rm -f /data/zipalign.log
+          chmod 777 /system/xbin/zipalign
+          chmod 777 /system/etc/init.d/S14zipalign
+          echo
+          echo "Zipalign during boot ENABLED"
+          sed -i '/zipalignduringboot=*/ d' $SETTINGS;
+          echo "zipalignduringboot=on" >> $SETTINGS;
+          sleep 2
+          clear
+          engengishss
+    fi;
+    ;;
+    "3")
+    clear
+    echo "Ignore all errors during proces!"
+    echo "Errors won't harm your phone!"
+    sleep 3
+    clear
+    echo "Optimizing Sqlite db's please wait..."
+    sleep 1
+    chmod 777 /system/xbin/sqlite3
+    chmod 777 /system/etc/engengis/S21sqlite
+    sh /system/etc/engengis/S21sqlite
+    clear
+    engengishss
+    ;;
+    "4")
+    clear
+    echo
+    echo "1 - Drop caches now"
+    if [ -e /system/etc/init.d/S49dropcaches ]; then
+       echo "2 - Disable Drop caches during boot"
+    else
+       echo "2 - Enable Drop caches during boot"
+    fi;
+    echo "b - back"
+    read dropcaches
+    ;;
+    "5")
+    if [ $(cat /system/build.prop | grep "debug.sf.hw=0" | wc -l) -gt 0 ]; then
+         sed -i '/debug.sf.hw=*/ d' /system/build.prop
+         echo "debug.sf.hw=1" >> /system/build.prop
+         echo
+         echo "UI rendering with GPU ENABLED"
+         echo "Phone wil reboot in a few seconds"
+         sleep 3
+         reboot
+    else
+         sed -i '/debug.sf.hw=*/ d' /system/build.prop
+         echo "debug.sf.hw=0" >> /system/build.prop
+         echo
+         echo "UI rendering with GPU DISABLED"
+         echo "Phone wil reboot in a few seconds"
+         sleep 3
+         reboot
+    fi;  
+    ;;
+    "b" | "B")
+    clear
+    engengis
+    ;;
+ esac
+}
+
+tweaks () {
+case "$dropcaches" in
+  "1")
+  chmod 777 /system/etc/engengis/S49dropcaches
+  sh /system/etc/engengis/S49dropcaches
+  echo
+  echo "Caches dropped!"
+  sleep 2
+  clear
+  engengishss
+  ;;
+  "2")
+  if [ -e /system/etc/init.d/S49dropcaches ]; then 
+     rm -f /system/etc/init.d/S49dropcaches
+     echo
+     echo "Drop caches during boot DISABLED"
+     sed -i '/dropcachesduringboot=*/ d' $SETTINGS;
+     echo "dropcachesduringboot=off" >> $SETTINGS;
+     sleep 2
+     clear
+     engengishss
+  else
+     cp /system/etc/engengis/S49dropcaches /system/etc/init.d/S49dropcaches
+     chmod 777 /system/etc/init.d/S49dropcaches
+     echo
+     echo "Drop caches during boot ENABLED"
+     sed -i '/dropcachesduringboot=*/ d' $SETTINGS;
+     echo "dropcachesduringboot=on" >> $SETTINGS;
+     sleep 2
+     clear 
+     engengishss
+  fi;
+  ;;
+  "b" | "B")
+  clear
+  engengishss
+  ;;
+esac
+}
+
+entry;
+
+

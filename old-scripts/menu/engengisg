@@ -1,0 +1,150 @@
+#!/system/bin/sh
+# Copyright (c) 2012, Jake "redmaner" van der Putten
+# Engengis project
+
+GOVERNOR=/system/etc/init.d/S42cpugovernor
+SETTINGS=/data/settings.conf
+
+mount -o remount,rw /system
+clear
+echo
+echo " #########################"
+echo " #  Engengis.Charlie       #" 
+echo " #########################"
+echo 
+echo " 1 - Set Conservative governor"
+echo " 2 - Set Ondemand governor"
+echo " 3 - Set SmartassV2 governor"
+echo " 4 - Set Interactive governor"
+echo " 5 - Set lulzactive governor"
+echo " 6 - Remove governor settings"
+echo " b - Back"
+if [ -e $GOVERNOR ]; then
+if [ $(cat $GOVERNOR | grep "# Conservative governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = CONSERVATIVE"
+elif [ $(cat $GOVERNOR | grep "# Ondemand governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = ONDEMAND"
+elif [ $(cat $GOVERNOR | grep "# SmartassV2 governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = SMARTASS-V2"
+elif [ $(cat $GOVERNOR | grep "# Interactive governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = INTERACTIVE"
+elif [ $(cat $GOVERNOR | grep "# Lulzactive governor" | wc -l) -gt 0 ]; then
+      echo
+      echo "--------------------------------"
+      echo "CPU governor = LULZACTIVE"
+fi;
+fi;
+echo
+echo -n "Please enter your choice:"; read option;
+  case "$option" in
+    "1")
+    if [ -e $GOVERNOR ]; then
+          rm -f $GOVERNOR
+    fi;
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "conservative" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuconservative $GOVERNOR;
+        chmod 777 $GOVERNOR;
+        sed -i '/cpugovernor=*/ d' $SETTINGS;
+        echo "cpugovernor=conservative" >> $SETTINGS;
+   else
+        echo
+        echo "Kernel doesn't support Conservative governor"
+        sleep 2
+    fi;
+    clear
+    engengisg
+    ;;
+    "2")
+    if [ -e $GOVERNOR ]; then
+          rm -f $GOVERNOR
+    fi;
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "ondemand" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuondemand $GOVERNOR;
+        chmod 777 $GOVERNOR;
+        sed -i '/cpugovernor=*/ d' $SETTINGS;
+        echo "cpugovernor=ondemand" >> $SETTINGS;
+    else
+        echo
+        echo "Kernel doesn't support Ondemand governor"
+        sleep 2
+    fi;
+    clear
+    engengisg
+    ;;
+    "3")
+    if [ -e $GOVERNOR ]; then
+          rm -f $GOVERNOR
+    fi;
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "smartassV2" | wc -l) -gt 0 ]; then
+      cp /system/etc/engengis/S42cpusmartassv2 $GOVERNOR;
+      chmod 777 $GOVERNOR;
+      sed -i '/cpugovernor=*/ d' $SETTINGS;
+      echo "cpugovernor=smartassv2" >> $SETTINGS;
+    else
+        echo
+        echo "Kernel doesn't support SmartassV2 governor"
+        sleep 2
+    fi;
+    clear
+    engengisg
+    ;;
+    "4")
+    if [ -e $GOVERNOR ]; then
+          rm -f $GOVERNOR
+    fi;
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "interactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpuinteractive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+        sed -i '/cpugovernor=*/ d' $SETTINGS;
+        echo "cpugovernor=interactive" >> $SETTINGS;
+    else
+        echo
+        echo "Kernel doesn't support Interactive governor"
+        sleep 2
+    fi;
+    clear
+    engengisg
+    ;;
+    "5")
+    if [ -e $GOVERNOR ]; then
+          rm -f $GOVERNOR
+    fi;
+    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "lulzactive" | wc -l) -gt 0 ]; then
+        cp /system/etc/engengis/S42cpululzactive $GOVERNOR;
+        chmod 777 $GOVERNOR;
+        sed -i '/cpugovernor=*/ d' $SETTINGS;
+        echo "cpugovernor=lulzactive" >> $SETTINGS;
+    else
+        echo
+        echo "Kernel doesn't support lulzactive governor"
+        sleep 2
+    fi;
+    clear
+    engengisg
+    ;;
+    "6")
+    if [ -e $GOVERNOR ]; then
+          rm -f $GOVERNOR
+    fi;
+    echo
+    echo "Governor settings removed"
+    sed -i '/cpugovernor=*/ d' $SETTINGS;
+    echo "cpugovernor=default" >> $SETTINGS;
+    sleep 2
+    clear
+    engengisg
+    ;;
+    "b" | "B")
+    clear
+    engengis
+    ;;
+  esac
+
