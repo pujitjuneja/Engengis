@@ -1,6 +1,25 @@
-This is the official repo off engengis.
-Engengis is simply written in linux bash. 
-This repo offers the latest engengis code including build tool for easy building engengis.
+## Copyright (c) 2012, Jake "redmaner" van der Putten
+## Engengis project
+## Version: Delta (21012012)
+## Universal build 46
+-------------------------------------------------------------------------------------
+Conditions off the source
+-------------------------------------------------------------------------------------
+You may use the source to build engengis yourself including your own code and improvements.
+You may use the source to build engengis specially for your ROM
+You may use the source to contribute to engengis project and report bugs or improvements.
+You may NOT use the source to build engengis and release it under another name!
+You may NOT use the source to include it in another script package!
+If you have any questions about the source and using it contact me jakevdputten@live.nl (it's my second email adress)
+
+--------------------------------------------------------------------------------------
+Engengis official repo
+--------------------------------------------------------------------------------------
+Includes:
+- Latest source code
+- OTA update service source
+- Old scripts
+- Build-tool 
 
 --------------------------------------------------------------------------------------
 How to build engengis?
@@ -9,12 +28,10 @@ To build engengis you need a few things:
 - Linux machine (ubuntu preffered)(not tested on Mac OSX)(Not working on windows)
 - Java installed (to sign zip)
 - zip/unzip (to make zip)(to get it: apt-get install zip)(apt-get install unzip)
-- Root acces
 
-To start you have to edit "build-engengis.sh" to your needs.
-People who are going to build this would know what they have to edit to get it working.
 Browse to engengis repo on your machine and give "build-engengis.sh" executable permissions.
-Run script as root and see how the magic works.
+Run script and let it do it's thing. 
+On some devices you have to edit "build-engengis.sh" to let it work on your machine.
 
 --------------------------------------------------------------------------------------
 What is engengis?
@@ -62,3 +79,19 @@ Included scripts/tweaks
 - Has a few build.prop tweaks included
 
 See: http://code.google.com/p/engengis
+
+--------------------------------------------------------------------------------------
+Credits/maintainers
+--------------------------------------------------------------------------------------
+Engengis has been made using some other existing code and by studying existing code.
+The authors of that code are stated below. Without them Engengis wasn't the way it is now.
+
+- Brainmaster [SD-Readspeed scripts]
+- GingerReal community [Helped with testing + debugging]
+- Google [Used LMK settings from ICS and GB]
+- Hardcore [Noatime mount using loop]
+- KNZO [void menu][IO scheduler + cpu governor information]
+- Linux [Studied source code documentation]
+- Pikachu01 [Optimiz sqlite db's script][Dropcaches idea]
+
+
