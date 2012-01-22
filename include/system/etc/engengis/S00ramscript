@@ -3,6 +3,7 @@
 # HSS  (configureable edition)
 # Thanks to linux kernel 2.6.37.6 source documentation
 # Engengis project
+# Codename: delta 
 
 BML=`ls -d /sys/block/bml*`;
 MMC=`ls -d /sys/block/mmc*`;
