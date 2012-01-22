@@ -1,0 +1,44 @@
+<b>Builds</b>= Improving excisting features of engengis<br>
+<b>Codenames</b>= <a href=http://www.dynamoo.com/technical/phonetic.htm>based on this</a> will only increase when new features comes out<br>
+<br>
+<b>Engengis.Charlie_build-44</b><br>
+- Initial public release to rootzwiki forums<br>
+- Optimized the whole code (it's a lot faster now)<br>
+- Merged all menu's in one file (it's a lot better and faster)<br>
+- Added save feature (remebers your tweaks now)<br>
+- Added configuration file <br>
+- Added new requirements check<br>
+- Added log for requirments only<br>
+- Added engengis settings to configure engengis<br>
+- Added a disclaimer<br>
+- Added support for MTD and ZRAM blocks<br>
+- Added optimize ramleaks during engengis execution<br>
+- Added build.prop optimizations menu<br>
+- Added support for performance and interactive governor<br>
+- Improved HSS tweak (two version now)<br>
+- Improved DPI menu <br>
+- Improved disable all tweaks feature
+- Improved OTA update service
+- Improved a lot off other features<br>
+- Removed lionhearth governor support<br>
+- Removed advanced features menu<br>
+- Removed fugu tweaks + restore option<br>
+- Removed dalvik cache verification tweaks<br>
+<br>
+<b>Engengis.Bravo_build-28</b><br>
+- Initial public release to gingerreal forums<br>
+- Added OTA support<br>
+- Added dropcaches script<br>
+- Added sqlite optimize option<br>
+- Added advanced features menu<br>
+- Added dpi menu<br>
+- Improved HSS tweak
+- Improved security<br>
+- Improved all IO schedulers<br>
+- Improved zipalign script<br>
+- Improved some governors<br>
+- Increased menu speed<br>
+- Fixed a lot off bugs<br>
+<br>
+<b>Engengis.Alpha_build-1</b><br>
+- Initial test team release<br>
