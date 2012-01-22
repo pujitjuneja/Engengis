@@ -1,9 +1,17 @@
 #!/system/bin/sh
 # Copyright (c) 2012, Jake "redmaner" van der Putten
 # Engengis project
-# Codename: Delta (build=21012012)
-# Universal Build 46
 
+# Version information
+BUILD=46 
+CODENAME=Delta
+VERSION=2201121433
+AUTHOR=Redmaner
+COMPILER=Redmaner
+STATUS=Beta
+OFFICIAL=Yes
+
+# Engengis information
 LOG=/data/engengis.log
 CONFIG=/data/engengis.conf
 SETTINGS=/data/settings.conf
@@ -11,7 +19,6 @@ SCHEDULER=/system/etc/init.d/S28scheduler
 READSPEED=/system/etc/init.d/S35sdreadspeed
 GOVERNOR=/system/etc/init.d/S42cpugovernor
 BPROP=/system/build.prop
-VERSION=/system/etc/engengis/version
 RAMSCRIPT=/system/etc/init.d/S00ramscript
 
 # -------------------------------------------------------------------------
@@ -65,8 +72,8 @@ elif [ -e /system/bin/busybox ]; then
     echo "Busybox detected: /system/bin/busybox" >> $LOG;
 else
     echo "Root = failure" >> $LOG;
-    echo "SU binary not detected" >> $LOG;
-    echo "SU binary has not been found!"
+    echo "Busybox binary not detected" >> $LOG;
+    echo "Busybox binary has not been found!"
     echo "Please be sure you are rooted"
     exit
 fi;
@@ -344,7 +351,7 @@ entry () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - System tweaks" 
@@ -393,7 +400,7 @@ systemtweaks () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - Configure systemtweak" 
@@ -544,7 +551,7 @@ schedulersettings () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - Set BFQ scheduler"
@@ -658,7 +665,7 @@ readspeedsettings () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - Set SD-Readspeed to 256kb"
@@ -758,7 +765,7 @@ governorsettings () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - Set Conservative governor"
@@ -894,7 +901,7 @@ echo -n "Please enter your choice:"; read optiong;
          if [ $(cat $GOVERNOR | grep "# Conservative governor" | wc -l) -gt 0 ]; then
               echo
               echo "------------------------"
-              echo "Engengis.Delta_`cat $VERSION`" 
+              echo "Engengis.Delta" 
               echo "------------------------"
               echo 
               echo "CPU governor = CONSERVATIVE"
@@ -983,7 +990,7 @@ dpimenu () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - Set dpi to 240 (hdpi)"
@@ -1114,7 +1121,7 @@ buildprop () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 if [ $(cat $BPROP | grep "debug.sf.hw=0" | wc -l) -gt 0 ]; then
@@ -1290,7 +1297,7 @@ settingsmenu () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - Wipe init.d folder"
@@ -1304,6 +1311,7 @@ fi;
 echo " 5 - Log options"
 echo " 6 - Uninstall Engengis"
 echo " 7 - Reset engengis"
+echo " 8 - Version information"
 echo " b - Back"
 echo
 echo -n "Please enter your choice:"; read menu;
@@ -1357,6 +1365,22 @@ echo -n "Please enter your choice:"; read menu;
     echo "Do you want to proceed?"
     echo "[y or n]"
     read reset;;
+    "8")
+    clear
+    echo
+    echo "------------------------"
+    echo "Engengis.Delta" 
+    echo "------------------------"
+    echo
+    echo " Build = $BUILD"
+    echo " Codename = $CODENAME"
+    echo " Version = $VERSION"
+    echo " Author = $AUTHOR"
+    echo " Compiler = $COMPILER"
+    echo " Status = $STATUS"
+    echo " Official = $OFFICIAL"
+    echo
+    echo -n "Press any key to continue:"; read version;;
     "b" | "B") clear; entry;;
     "r" | "R") reboot ;;
   esac
@@ -1594,6 +1618,10 @@ case "$reset" in
   "n" | "N")
   clear; settingsmenu;;
 esac
+
+case "$version" in
+  *) clear; settingsmenu;;
+esac
 }
 
 # -------------------------------------------------------------------------
@@ -1603,7 +1631,7 @@ ramscriptconfig () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 if [ -e $RAMSCRIPT ]; then
@@ -1635,7 +1663,7 @@ ramscriptconfigswap () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - Swap Agressive"
@@ -1683,7 +1711,7 @@ ramscriptconfigdirtyratio () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - Dirtyratio 90 - 65"
@@ -1731,7 +1759,7 @@ ramscriptconfigwriteback () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - Expire/writeback = Battery"
@@ -1779,7 +1807,7 @@ ramscriptconfiglmk () {
 clear
 echo
 echo "------------------------"
-echo "Engengis.Delta_`cat $VERSION`" 
+echo "Engengis.Delta" 
 echo "------------------------"
 echo
 echo " 1 - LowMemoryKiller Agressive"
@@ -1831,6 +1859,11 @@ esac
 # -------------------------------------------------------------------------
 ramscriptconfigend () {
 clear
+echo
+echo "------------------------"
+echo "Engengis.Delta" 
+echo "------------------------"
+echo
 echo " 1 - Back to Engengis main menu"
 echo " 2 - Back to Engengis systemtweaks menu"
 echo
