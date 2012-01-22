@@ -69,7 +69,8 @@ Included scripts/tweaks
 - Zipalign during boot
 - optimize sqlite db's (not as boot but using the interface)
 - drop caches during boot
-- Internet tweaks (speed + security)
+- Internetspeed tweaks 
+- Internetsecurity tweaks
 - IO schedulers BFQ - CFQ - Deadline - Noop - SIO - VR (can't run multiply schedulers with engengis)
 - check wich I/O schedulers are supported
 - SD-Readspeeds 256 - 512 - 1024 -2048 - 3072 - 4096
