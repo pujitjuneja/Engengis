@@ -5,7 +5,7 @@
 # Version information
 BUILD=46 
 CODENAME=Delta
-VERSION=2201121901
+VERSION=2201121919
 AUTHOR=Redmaner
 COMPILER=Redmaner
 STATUS=Beta
@@ -896,7 +896,7 @@ echo -n "Please enter your choice:"; read optiong;
          elif [ $(cat $GOVERNOR | grep "# Ondemand governor" | wc -l) -gt 0 ]; then
               echo
               echo "------------------------"
-              echo "Engengis.Charlie_`cat $VERSION`" 
+              echo "Engengis.Delta" 
               echo "------------------------"
               echo 
               echo "CPU governor = CONSERVATIVE"

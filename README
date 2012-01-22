@@ -1,6 +1,6 @@
 ## Copyright (c) 2012, Jake "redmaner" van der Putten
 ## Engengis project
-## Version: Delta (2201121901)
+## Version: Delta 
 ## Universal build 46
 -------------------------------------------------------------------------------------
 Conditions off the source
@@ -65,16 +65,16 @@ Features
 --------------------------------------------------------------------------------------
 Included scripts/tweaks
 --------------------------------------------------------------------------------------
-- Engengis ramscript (also known as HSS)(slight and agressive version)
+- Engengis configureable Systemtweak
 - Zipalign during boot
 - optimize sqlite db's (not as boot but using the interface)
 - drop caches during boot
-- Internet tweaks
+- Internet tweaks (speed + security)
 - IO schedulers BFQ - CFQ - Deadline - Noop - SIO - VR (can't run multiply schedulers with engengis)
 - check wich I/O schedulers are supported
 - SD-Readspeeds 256 - 512 - 1024 -2048 - 3072 - 4096
 - CPU governors (can only be set when kernel supports them)
-- Conservative - ondemand - smartassV2 - interactive - lulzactive - performance supported
+- Conservative - ondemand - smartassV2 - interactive - lulzactive  supported
 - Possibility to set display resolution (dpi)
 - Has a few build.prop tweaks included
 
