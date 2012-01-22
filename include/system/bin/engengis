@@ -772,14 +772,13 @@ echo " 1 - Set Conservative governor"
 echo " 2 - Set Ondemand governor"
 echo " 3 - Set Interactive governor"
 echo " 4 - Set lulzactive governor"
-echo " 5 - Set Performance governor"
-echo " 6 - Set SmartassV2 governor"
-echo " 7 - Remove governor settings"
+echo " 5 - Set SmartassV2 governor"
+echo " 6 - Remove governor settings"
 if [ -e $GOVERNOR ]; then
    if [ $(cat $GOVERNOR | grep "# Conservative governor" | wc -l) -gt 0 ]; then
-        echo " 8 - Extra governor tweaks"
+        echo " 7 - Extra governor tweaks"
    elif [ $(cat $GOVERNOR | grep "# Ondemand governor" | wc -l) -gt 0 ]; then
-        echo " 8 - Extra governor tweaks"
+        echo " 7 - Extra governor tweaks"
    fi;
 fi;
 echo " b - Back"
@@ -804,10 +803,6 @@ elif [ $(cat $GOVERNOR | grep "# Lulzactive governor" | wc -l) -gt 0 ]; then
       echo
       echo "--------------------------------"
       echo "CPU governor = LULZACTIVE"
-elif [ $(cat $GOVERNOR | grep "# Performance governor" | wc -l) -gt 0 ]; then
-      echo
-      echo "--------------------------------"
-      echo "CPU governor = PERFORMANCE"
 fi;
 fi;
 echo
@@ -862,18 +857,6 @@ echo -n "Please enter your choice:"; read optiong;
     fi;
     clear; governorsettings;;
     "5")
-    if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "performance" | wc -l) -gt 0 ]; then
-        cp /system/etc/engengis/S42cpuperformance $GOVERNOR;
-        chmod 777 $GOVERNOR;
-        sed -i '/cpugovernor=*/ d' $SETTINGS;
-        echo "cpugovernor=performance" >> $SETTINGS;
-    else
-        echo
-        echo "Kernel doesn't support performance governor"
-        sleep 2
-    fi;
-    clear; governorsettings;;
-    "6")
     if [ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | grep "smartassV2" | wc -l) -gt 0 ]; then
       cp /system/etc/engengis/S42cpusmartassv2 $GOVERNOR;
       chmod 777 $GOVERNOR;
@@ -885,7 +868,7 @@ echo -n "Please enter your choice:"; read optiong;
         sleep 2
     fi;
     clear; governorsettings;;
-    "7")
+    "6")
     if [ -e $GOVERNOR ]; then
           rm -f $GOVERNOR
     fi;
@@ -895,7 +878,7 @@ echo -n "Please enter your choice:"; read optiong;
     echo "cpugovernor=default" >> $SETTINGS;
     sleep 2
     clear; governorsettings;;
-    "8")
+    "7")
     clear
     if [ -e $GOVERNOR ]; then
          if [ $(cat $GOVERNOR | grep "# Conservative governor" | wc -l) -gt 0 ]; then
