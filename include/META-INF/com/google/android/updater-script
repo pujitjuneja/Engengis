@@ -50,7 +50,5 @@ ui_print(" ");
 ui_print("--------------------------------");
 ui_print("         Engengis.Delta         ");
 ui_print("--------------------------------");
-ui_print("     http://gingerreal.info     ");
-ui_print("--------------------------------");
 ui_print("           Thank you            ");
 ui_print("--------------------------------");
