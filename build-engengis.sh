@@ -13,14 +13,16 @@ VERSION=`cat currentversion`
 
 if [ -d build ]; then
      echo "Start building engengis..."
+     sleep 1
 else
      mkdir build
 fi;
 cd include
 echo "Making zip archieve..."
+sleep 1
 zip -r engengis * 
 cd ..
-sleep 3
+sleep 2
 echo "Signing zip archieve..."
 mv include/engengis.zip signzip/engengis.zip
 cd signzip
@@ -30,3 +32,4 @@ mv signzip/signed-engengis.zip build/$VERSION.zip
 echo "Done find build at:"
 echo "/build/$VERSION.zip"
 rm -f signzip/engengis.zip
+sleep 3
