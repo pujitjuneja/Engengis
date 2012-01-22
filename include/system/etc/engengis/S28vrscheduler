@@ -1,6 +1,7 @@
 #!/system/bin/sh
 # Copyright (c) 2012, redmaner
-
+# Engengis project
+# Codename: delta
 
 BML=`ls -d /sys/block/bml*`;
 MMC=`ls -d /sys/block/mmc*`;
