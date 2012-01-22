@@ -5,7 +5,7 @@
 # Version information
 BUILD=46 
 CODENAME=Delta
-VERSION=2201121921
+VERSION=2201121929
 AUTHOR=Redmaner
 COMPILER=Redmaner
 STATUS=Beta
@@ -899,7 +899,7 @@ echo -n "Please enter your choice:"; read optiong;
               echo "Engengis.Delta" 
               echo "------------------------"
               echo 
-              echo "CPU governor = CONSERVATIVE"
+              echo "CPU governor = ONDEMAND"
               echo
               echo " 1 - Set agressive settings"
               echo " b - Back"
